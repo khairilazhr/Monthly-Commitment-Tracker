@@ -1,0 +1,6 @@
+{
+  "name": "Monthly Commitment Tracker",
+  "description": "Track monthly financial commitments, installments, and subscriptions with visual timelines and budget projections.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

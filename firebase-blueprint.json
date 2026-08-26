@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "commitment": {
+      "title": "Commitment",
+      "description": "A monthly commitment, installment, or recurring subscription.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "durationMonths": { "type": "number" },
+        "startMonth": { "type": "string" },
+        "dueDay": { "type": "number" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "name", "category", "amount", "durationMonths", "startMonth", "dueDay", "createdAt"]
+    },
+    "payment": {
+      "title": "Payment",
+      "description": "A payment record for a specific commitment and month.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "commitmentId": { "type": "string" },
+        "userId": { "type": "string" },
+        "month": { "type": "string" },
+        "status": { "type": "string", "enum": ["paid", "pending"] },
+        "paidAt": { "type": "string" }
+      },
+      "required": ["id", "commitmentId", "userId", "month", "status"]
+    }
+  },
+  "firestore": {
+    "/commitments/{commitmentId}": {
+      "schema": "commitment",
+      "description": "User monthly commitments"
+    },
+    "/payments/{paymentId}": {
+      "schema": "payment",
+      "description": "Tracking payment status per commitment and month"
+    }
+  }
+}

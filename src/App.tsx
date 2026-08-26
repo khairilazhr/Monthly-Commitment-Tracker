@@ -530,56 +530,73 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="app-dashboard-root">
       
       {/* Top Banner & Header */}
-      <header className="bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40" id="main-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40" id="main-header">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2.5 sm:py-0 sm:h-16 gap-2 sm:gap-4">
             
-            {/* Title / Logo */}
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-600/10">
-                <Landmark size={20} />
+            {/* Top row on mobile: Logo + User / Sign out */}
+            <div className="flex justify-between items-center w-full sm:w-auto">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 sm:p-2.5 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-600/10 shrink-0">
+                  <Landmark size={18} className="sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <h1 className="text-sm sm:text-base font-bold text-slate-800 tracking-tight leading-tight">Monthly Commitments</h1>
+                  <p className="text-[10px] text-slate-400 font-semibold hidden sm:block">Installment & Subscription Tracker</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-base font-bold text-slate-800 tracking-tight leading-tight">Monthly Commitments</h1>
-                <p className="text-[10px] text-slate-400 font-bold hidden sm:block">Durable Installment & Subscription Tracker</p>
+
+              {/* Mobile Right Controls */}
+              <div className="flex sm:hidden items-center gap-1.5" id="mobile-profile-controls">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 max-w-[120px] truncate">
+                  {user.isAnonymous ? 'Guest' : user.email?.split('@')[0]}
+                </span>
+                <button
+                  onClick={handleSignOut}
+                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  title="Sign Out"
+                  id="mobile-signout-btn"
+                >
+                  <LogOut size={16} />
+                </button>
               </div>
             </div>
 
             {/* Middle: Month Navigation */}
-            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 animate-fade-in" id="month-navigator">
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-slate-50/90 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200 animate-fade-in w-full sm:w-auto" id="month-navigator">
               <button 
                 onClick={handlePrevMonth}
-                className="p-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-xl transition-all cursor-pointer active:scale-95 border border-indigo-100/50 shadow-2xs flex items-center justify-center h-9 w-9"
+                className="p-1.5 sm:p-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-lg sm:rounded-xl transition-all cursor-pointer active:scale-95 border border-indigo-100/50 shadow-2xs flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 shrink-0"
                 title="Previous Month"
               >
                 <ChevronLeft size={16} className="stroke-[2.5]" />
               </button>
               <button
                 onClick={handleResetMonth}
-                className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs border border-slate-200 h-9"
+                className="flex-1 sm:flex-initial px-3 sm:px-4 py-1 sm:py-2 bg-white hover:bg-slate-50 text-slate-800 text-[11px] sm:text-xs font-bold rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs border border-slate-200 h-8 sm:h-9 truncate"
                 title="Go to current month"
               >
-                <CalendarIcon size={13} className="text-indigo-600 animate-pulse" />
-                {formatMonthReadable(selectedMonth)}
+                <CalendarIcon size={12} className="text-indigo-600 animate-pulse shrink-0" />
+                <span>{formatMonthReadable(selectedMonth)}</span>
               </button>
               <button 
                 onClick={handleNextMonth}
-                className="p-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-xl transition-all cursor-pointer active:scale-95 border border-indigo-100/50 shadow-2xs flex items-center justify-center h-9 w-9"
+                className="p-1.5 sm:p-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-lg sm:rounded-xl transition-all cursor-pointer active:scale-95 border border-indigo-100/50 shadow-2xs flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 shrink-0"
                 title="Next Month"
               >
                 <ChevronRight size={16} className="stroke-[2.5]" />
               </button>
             </div>
 
-            {/* Right: Auth Profile and controls */}
-            <div className="flex items-center gap-3" id="profile-controls">
-              <div className="hidden md:flex flex-col items-end text-right">
+            {/* Desktop Right: Auth Profile and controls */}
+            <div className="hidden sm:flex items-center gap-3" id="profile-controls">
+              <div className="flex flex-col items-end text-right">
                 <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
                   <UserCheck size={12} className={user.isAnonymous ? 'text-amber-500' : 'text-indigo-600'} />
                   {user.isAnonymous ? (localStorage.getItem('is_local_mode') === 'true' ? 'Local Sandbox Guest' : 'Guest Account') : user.email}
                 </span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                  {localStorage.getItem('is_local_mode') === 'true' ? 'Local Sandbox Mode' : user.isAnonymous ? 'Temporary Sync' : 'Permanent Cloud Sync'}
+                  {localStorage.getItem('is_local_mode') === 'true' ? 'Local Sandbox' : user.isAnonymous ? 'Temporary Sync' : 'Cloud Sync Active'}
                 </span>
               </div>
               
@@ -599,23 +616,23 @@ export default function App() {
 
       {/* Guest warning banner if anonymous */}
       {user.isAnonymous && (
-        <div className="bg-amber-50/70 border-b border-amber-200 py-3 px-4" id="guest-account-banner">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-amber-800 font-bold">
+        <div className="bg-amber-50/70 border-b border-amber-200 py-2.5 px-3 sm:px-4" id="guest-account-banner">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 text-[11px] sm:text-xs text-amber-800 font-bold">
             <span className="flex items-center gap-2">
               <Info size={14} className="text-amber-600 shrink-0" />
               {localStorage.getItem('is_local_mode') === 'true' 
-                ? "Running in Local Sandbox Mode. To enable Cloud Sync, please enable Anonymous or Email/Password Sign-In providers in your Firebase Auth console."
-                : "You are currently using Guest Mode. Commitments are securely stored, but to access them from other devices, sign out and register an account."}
+                ? "Running in Local Sandbox Mode. Data is stored safely on this browser."
+                : "Using Guest Mode. To sync across devices, sign out and register an account."}
             </span>
           </div>
         </div>
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
         
         {operationError && (
-          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-start gap-3 text-xs font-bold animate-shake" id="db-operation-error-banner">
+          <div className="bg-red-50 border border-red-200 text-red-800 p-3 sm:p-4 rounded-2xl flex items-start gap-2.5 sm:gap-3 text-xs font-bold animate-shake" id="db-operation-error-banner">
             <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-extrabold text-red-900">Database Action Failed</p>
@@ -637,54 +654,54 @@ export default function App() {
         />
 
         {/* Tab Navigation Controls */}
-        <div className="border-b border-slate-200" id="tabs-navigation">
-          <nav className="flex space-x-6" aria-label="Tabs">
+        <div className="border-b border-slate-200 pb-0" id="tabs-navigation">
+          <nav className="flex space-x-2 sm:space-x-6 overflow-x-auto no-scrollbar" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`pb-4 px-1 border-b-2 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              className={`pb-3 sm:pb-4 px-2 sm:px-1 border-b-2 font-bold text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'dashboard'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
               id="tab-btn-dashboard"
             >
-              <LayoutDashboard size={14} />
-              Dashboard & List
+              <LayoutDashboard size={14} className="shrink-0" />
+              <span><span className="hidden xs:inline">Dashboard & </span>List</span>
             </button>
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`pb-4 px-1 border-b-2 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              className={`pb-3 sm:pb-4 px-2 sm:px-1 border-b-2 font-bold text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'calendar'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
               id="tab-btn-calendar"
             >
-              <CalendarIcon size={14} />
-              Due Schedule Calendar
+              <CalendarIcon size={14} className="shrink-0" />
+              <span>Due <span className="hidden xs:inline">Schedule </span>Calendar</span>
             </button>
             <button
               onClick={() => setActiveTab('projections')}
-              className={`pb-4 px-1 border-b-2 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              className={`pb-3 sm:pb-4 px-2 sm:px-1 border-b-2 font-bold text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'projections'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
               id="tab-btn-projections"
             >
-              <TrendingUp size={14} />
-              12-Month Projection
+              <TrendingUp size={14} className="shrink-0" />
+              <span>12-Month Proj<span className="hidden xs:inline">ection</span></span>
             </button>
           </nav>
         </div>
 
         {/* Tab Contents */}
         {dbLoading ? (
-          <div className="py-24 text-center text-slate-400" id="db-loading-state">
-            <p className="text-sm font-bold animate-pulse">Syncing transactions database...</p>
+          <div className="py-16 sm:py-24 text-center text-slate-400" id="db-loading-state">
+            <p className="text-xs sm:text-sm font-bold animate-pulse">Syncing transactions database...</p>
           </div>
         ) : (
-          <div className="space-y-6" id="tab-content-wrapper">
+          <div className="space-y-4 sm:space-y-6" id="tab-content-wrapper">
             {activeTab === 'dashboard' && (
               <CommitmentList
                 commitments={commitments}
@@ -721,7 +738,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 mt-12" id="main-footer">
+      <footer className="bg-white border-t border-slate-200 py-4 sm:py-6 mt-8 sm:mt-12" id="main-footer">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-[10px] text-slate-400 font-bold">
           <p>© 2026 Monthly Commitments Financial Tracker. All connections secured on the cloud.</p>
         </div>

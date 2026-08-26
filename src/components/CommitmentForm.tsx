@@ -72,11 +72,11 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="commitment-form-modal">
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden" id="commitment-form-container">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-fade-in" id="commitment-form-modal">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-200 max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden" id="commitment-form-container">
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800 font-sans tracking-tight">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">
             {initialCommitment ? 'Edit Commitment' : 'Add Monthly Commitment'}
           </h3>
           <button 
@@ -89,16 +89,16 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
           {error && (
-            <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-100 flex items-center gap-2 animate-shake">
+            <div className="p-2.5 sm:p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-100 flex items-center gap-2 animate-shake">
               <span className="font-bold">Error:</span> {error}
             </div>
           )}
 
           {/* Commitment Name */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
               Financial Commitment Name
             </label>
             <input
@@ -107,30 +107,30 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Grab Installment, Shopee Pay, Netflix"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder:text-slate-400 font-sans font-medium"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder:text-slate-400 font-sans font-medium"
               id="input-commitment-name"
             />
             <p className="mt-1 text-[10px] text-slate-400 font-medium">Specify the service provider or account name</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {/* Category */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Category
               </label>
               <div className="relative">
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm appearance-none focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-medium cursor-pointer"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm appearance-none focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-medium cursor-pointer"
                   id="select-commitment-category"
                 >
                   {CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                   <Layers size={14} />
                 </div>
               </div>
@@ -138,11 +138,11 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
 
             {/* Monthly Amount */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Monthly Amount
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">RM</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">RM</span>
                 <input
                   type="number"
                   step="0.01"
@@ -151,7 +151,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-bold"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-bold"
                   id="input-commitment-amount"
                 />
               </div>
@@ -159,9 +159,9 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
           </div>
 
           {/* Commitment Duration */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200 space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Type of commitment
               </label>
               <div className="flex items-center gap-1.5">
@@ -173,14 +173,14 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
                   className="rounded-md border-slate-350 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                 />
                 <label htmlFor="checkbox-ongoing" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                  Ongoing / Subscription
+                  Ongoing / Sub
                 </label>
               </div>
             </div>
 
             {!isOngoing ? (
               <div className="space-y-1 animate-fade-in" id="duration-input-container">
-                <label className="block text-[11px] font-bold text-slate-400">
+                <label className="block text-[10px] sm:text-[11px] font-bold text-slate-400">
                   Duration (How many months?)
                 </label>
                 <div className="relative">
@@ -191,7 +191,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
                     value={durationMonths}
                     onChange={(e) => setDurationMonths(e.target.value)}
                     placeholder="e.g. 6, 12, 24"
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-semibold"
+                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-semibold"
                     id="input-commitment-duration"
                   />
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
@@ -202,15 +202,15 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
             ) : (
               <div className="text-xs text-indigo-600 bg-indigo-50/70 p-2.5 rounded-xl flex items-start gap-2 border border-indigo-100 animate-fade-in" id="ongoing-notice">
                 <Clock size={14} className="mt-0.5 shrink-0" />
-                <span className="font-semibold">Ongoing commitments have no set end date (e.g. utilities, rent, streaming subscriptions).</span>
+                <span className="font-semibold text-[11px]">Ongoing commitments have no set end date (e.g. utilities, rent, streaming).</span>
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {/* Start Month */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Start Month
               </label>
               <div className="relative">
@@ -219,7 +219,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
                   required
                   value={startMonth}
                   onChange={(e) => setStartMonth(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-medium cursor-pointer"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-medium cursor-pointer"
                   id="input-commitment-start"
                 />
               </div>
@@ -227,7 +227,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
 
             {/* Payment Due Day */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Due Day of Month
               </label>
               <input
@@ -238,7 +238,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
                 value={dueDay}
                 onChange={(e) => setDueDay(e.target.value)}
                 placeholder="e.g. 5"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-semibold"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-semibold"
                 id="input-commitment-dueday"
               />
             </div>
@@ -246,7 +246,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
 
           {/* Belongs To User Selection */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
               Belongs To (For Split Payment)
             </label>
             <div className="grid grid-cols-2 gap-2" id="user-selector-grid">
@@ -266,12 +266,11 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-[10px] text-slate-400 font-medium">Select who is responsible for this payment</p>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
               Notes (Optional)
             </label>
             <textarea
@@ -279,27 +278,27 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add details, link, account ID, or reminder notes..."
               rows={2}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 placeholder:text-slate-400 font-sans font-semibold resize-none"
+              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 placeholder:text-slate-400 font-sans font-medium resize-none"
               id="input-commitment-notes"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-3">
+          <div className="flex gap-2.5 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+              className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs sm:text-sm font-bold hover:bg-slate-50 transition-colors cursor-pointer"
               id="cancel-form-btn"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-md shadow-indigo-600/10"
+              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-md shadow-indigo-600/10"
               id="save-commitment-btn"
             >
-              {initialCommitment ? 'Update' : 'Add Commitment'}
+              {initialCommitment ? 'Update' : 'Add Bill'}
             </button>
           </div>
         </form>

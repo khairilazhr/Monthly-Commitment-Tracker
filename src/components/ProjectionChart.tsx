@@ -78,21 +78,21 @@ export default function ProjectionChart({ commitments, selectedMonth }: Projecti
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6" id="projection-chart-section">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="bg-white border border-slate-200 rounded-2xl md:rounded-3xl shadow-2xs p-3.5 sm:p-5 md:p-6" id="projection-chart-section">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
-          <h3 className="text-lg font-bold text-slate-800 font-sans tracking-tight">12-Month Commitment Projection</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Visualize how your monthly commitment decreases as installments expire</p>
+          <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">12-Month Commitment Projection</h3>
+          <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Visualize how your monthly commitment decreases as installments expire</p>
         </div>
 
         {/* Analytics Card */}
         {reduction > 0 && (
-          <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 flex items-center gap-3 self-start md:self-auto" id="projection-reduction-badge">
-            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg">
-              <TrendingDown size={16} />
+          <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-2.5 sm:p-3 flex items-center gap-2.5 sm:gap-3 self-start sm:self-auto" id="projection-reduction-badge">
+            <div className="p-1.5 sm:p-2 bg-indigo-100 text-indigo-700 rounded-lg shrink-0">
+              <TrendingDown size={15} />
             </div>
             <div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Projected Debt Relief</p>
+              <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider">Projected Debt Relief</p>
               <p className="text-xs font-bold text-indigo-800">
                 Decreases by {formatCurrency(reduction)} (-{percentReduction}%) by {formatMonthReadable(data[11].month)}
               </p>
@@ -102,18 +102,18 @@ export default function ProjectionChart({ commitments, selectedMonth }: Projecti
       </div>
 
       {commitments.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-200" id="empty-chart-state">
+        <div className="h-48 sm:h-64 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-200" id="empty-chart-state">
           <AlertCircle className="text-slate-400 mb-2" size={24} />
           <p className="text-xs text-slate-400 font-semibold">Add commitments to view your 12-month timeline projection</p>
         </div>
       ) : (
-        <div className="space-y-4" id="projection-chart-container">
+        <div className="space-y-3 sm:space-y-4" id="projection-chart-container">
           {/* Recharts Area Chart */}
-          <div className="h-72 w-full animate-fade-in" id="responsive-recharts-container">
+          <div className="h-56 sm:h-64 md:h-72 w-full animate-fade-in" id="responsive-recharts-container">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={data}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -124,13 +124,13 @@ export default function ProjectionChart({ commitments, selectedMonth }: Projecti
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="shortLabel" 
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                  tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis 
                   tickFormatter={formatCurrency}
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                  tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -139,7 +139,7 @@ export default function ProjectionChart({ commitments, selectedMonth }: Projecti
                   type="monotone" 
                   dataKey="total" 
                   stroke="#4f46e5" 
-                  strokeWidth={3}
+                  strokeWidth={2.5}
                   fillOpacity={1} 
                   fill="url(#colorTotal)" 
                 />
@@ -147,8 +147,8 @@ export default function ProjectionChart({ commitments, selectedMonth }: Projecti
             </ResponsiveContainer>
           </div>
 
-          <div className="flex items-start gap-2 text-[10px] text-slate-400 leading-relaxed max-w-2xl bg-slate-50 p-3 rounded-2xl border border-slate-200/60 font-medium">
-            <HelpCircle size={14} className="text-slate-400 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2 text-[10px] text-slate-400 leading-relaxed max-w-2xl bg-slate-50 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/60 font-medium">
+            <HelpCircle size={13} className="text-slate-400 mt-0.5 shrink-0" />
             <span>
               This graph displays your aggregate obligations over the next 12 months. Short-term contracts (such as 6-month or 12-month credit card payments, Shopee Pay, and Grab installments) will expire and drop out of the totals, demonstrating how your disposable income increases over time.
             </span>

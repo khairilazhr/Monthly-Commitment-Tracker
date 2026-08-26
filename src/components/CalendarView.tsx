@@ -99,32 +99,32 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6" id="calendar-view-section">
-      <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100/30">
-          <Calendar size={18} />
+    <div className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-2xs p-3.5 sm:p-5 md:p-6" id="calendar-view-section">
+      <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6 border-b border-slate-100 pb-3 sm:pb-4">
+        <div className="p-2 sm:p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100/30 shrink-0">
+          <Calendar size={16} className="sm:w-[18px] sm:h-[18px]" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-slate-800 font-sans tracking-tight">Payment Due Schedule</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Interactive billing cycle calendar showing due dates for {formatMonthReadable(selectedMonth)} (25th to 24th)</p>
+          <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">Payment Due Schedule</h3>
+          <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Billing cycle calendar for {formatMonthReadable(selectedMonth)} (25th to 24th)</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="calendar-grid-layout">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6" id="calendar-grid-layout">
         {/* Calendar Grid */}
-        <div className="lg:col-span-7 space-y-4" id="calendar-wrapper">
+        <div className="lg:col-span-7 space-y-3 sm:space-y-4" id="calendar-wrapper">
           {/* Days of week header */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
             {daysOfWeek.map(d => (
-              <div key={d} className="py-1">{d}</div>
+              <div key={d} className="py-0.5 sm:py-1 truncate">{d}</div>
             ))}
           </div>
 
           {/* Calendar days grid */}
-          <div className="grid grid-cols-7 gap-1.5" id="calendar-days-grid">
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5" id="calendar-days-grid">
             {calendarCells.map((date, idx) => {
               if (date === null) {
-                return <div key={`empty-${idx}`} className="aspect-square bg-slate-50/40 rounded-xl border border-dashed border-slate-100" />;
+                return <div key={`empty-${idx}`} className="aspect-square bg-slate-50/40 rounded-lg sm:rounded-xl border border-dashed border-slate-100" />;
               }
 
               const day = date.getDate();
@@ -155,7 +155,7 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
               }
 
               if (isTodayCell) {
-                cellStyle += ' ring-2 ring-indigo-600/50 ring-offset-2';
+                cellStyle += ' ring-2 ring-indigo-600/50 ring-offset-1 sm:ring-offset-2';
               }
 
               if (isSelected) {
@@ -166,16 +166,16 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
                 <button
                   key={`date-${date.toISOString()}`}
                   onClick={() => setSelectedDay(date)}
-                  className={`aspect-square p-1.5 flex flex-col justify-between items-center rounded-xl border transition-all relative cursor-pointer ${cellStyle}`}
+                  className={`aspect-square p-1 sm:p-1.5 flex flex-col justify-between items-center rounded-lg sm:rounded-xl border transition-all relative cursor-pointer ${cellStyle}`}
                   id={`calendar-day-cell-${date.toISOString()}`}
                 >
-                  <span className={`text-xs font-semibold rounded-md w-5 h-5 flex items-center justify-center ${isTodayCell ? 'bg-indigo-600 text-white font-bold' : ''}`}>
+                  <span className={`text-[10px] sm:text-xs font-semibold rounded-md w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center ${isTodayCell ? 'bg-indigo-600 text-white font-bold' : ''}`}>
                     {day}
                   </span>
                   
                   {status && (
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold ${badgeStyle}`}>
-                      {status.count} due
+                    <span className={`text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-bold ${badgeStyle}`}>
+                      {status.count} <span className="hidden xs:inline">due</span>
                     </span>
                   )}
                 </button>
@@ -183,43 +183,43 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
             })}
           </div>
 
-          <div className="flex flex-wrap gap-4 text-[10px] text-slate-500 bg-slate-50 p-3 rounded-2xl border border-slate-200/60 justify-center font-semibold">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-              <span>Paid Day</span>
+          <div className="flex flex-wrap gap-2.5 sm:gap-4 text-[9px] sm:text-[10px] text-slate-500 bg-slate-50 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/60 justify-center font-semibold">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm bg-emerald-500" />
+              <span>Paid</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />
-              <span>Pending Day</span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm bg-indigo-500" />
+              <span>Pending</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-red-500" />
-              <span>Overdue Day</span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm bg-red-500" />
+              <span>Overdue</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm border border-indigo-600 ring-1 ring-indigo-600" />
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm border border-indigo-600 ring-1 ring-indigo-600" />
               <span>Today</span>
             </div>
           </div>
         </div>
 
         {/* Selected Day Details Panel */}
-        <div className="lg:col-span-5 bg-slate-50 rounded-3xl border border-slate-200 p-5 flex flex-col justify-between min-h-[300px]" id="calendar-details-panel">
+        <div className="lg:col-span-5 bg-slate-50 rounded-2xl md:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between min-h-[220px] sm:min-h-[300px]" id="calendar-details-panel">
           <div>
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+            <h4 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 sm:mb-3">
               {selectedDay ? `Due on ${getPaymentCalendarDate(selectedDay.getDate(), selectedMonth).readable}` : 'Select a calendar day'}
             </h4>
 
             {!selectedDay ? (
-              <div className="text-center py-12 text-slate-400" id="empty-day-selection">
-                <p className="text-xs">Click a day on the calendar to inspect or settle commitments due on that day.</p>
+              <div className="text-center py-8 sm:py-12 text-slate-400" id="empty-day-selection">
+                <p className="text-xs">Tap any date on the calendar to view or settle bills due on that date.</p>
               </div>
             ) : selectedDayCommitments.length === 0 ? (
-              <div className="text-center py-12 text-slate-400" id="empty-commitments-for-day">
-                <p className="text-xs">No commitments are scheduled due on {getPaymentCalendarDate(selectedDay.getDate(), selectedMonth).readable}.</p>
+              <div className="text-center py-8 sm:py-12 text-slate-400" id="empty-commitments-for-day">
+                <p className="text-xs">No commitments scheduled on {getPaymentCalendarDate(selectedDay.getDate(), selectedMonth).readable}.</p>
               </div>
             ) : (
-              <div className="space-y-3" id="calendar-day-commitments-list">
+              <div className="space-y-2 sm:space-y-3" id="calendar-day-commitments-list">
                 {selectedDayCommitments.map((commitment) => {
                   const payment = payments[commitment.id];
                   const isPaid = payment?.status === 'paid';
@@ -227,17 +227,17 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
                   return (
                     <div 
                       key={commitment.id}
-                      className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all"
+                      className="bg-white p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2.5 sm:gap-3 hover:border-slate-300 transition-all"
                     >
                       <div className="min-w-0">
                         <p className="font-bold text-xs text-slate-800 truncate">{commitment.name}</p>
-                        <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">{commitment.category}</p>
+                        <p className="text-[9px] sm:text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">{commitment.category}</p>
                         <p className="text-[10px] text-slate-400 mt-0.5 font-semibold">{formatCurrency(commitment.amount)} / month</p>
                       </div>
 
                       <button
                         onClick={() => onTogglePayment(commitment.id)}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
+                        className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
                           isPaid 
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' 
                             : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-600/10'
@@ -262,9 +262,9 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
           </div>
 
           {selectedDay && selectedDayCommitments.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-slate-200 text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-              <AlertCircle size={12} />
-              <span>Payments toggled here immediately update your monthly progress metrics.</span>
+            <div className="mt-3 pt-2.5 border-t border-slate-200 text-[9px] sm:text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+              <AlertCircle size={11} className="shrink-0" />
+              <span>Payments toggled here immediately update monthly progress.</span>
             </div>
           )}
         </div>

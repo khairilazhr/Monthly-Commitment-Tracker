@@ -211,7 +211,7 @@ export default function ImportModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in" id="import-excel-modal">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-2.5 sm:p-4 animate-fade-in" id="import-excel-modal">
       {/* Hidden universal file input */}
       <input 
         ref={fileInputRef}
@@ -222,28 +222,28 @@ export default function ImportModal({
         id="universal-excel-input"
       />
 
-      <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[94vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-2xl">
-              <FileSpreadsheet size={22} />
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="p-2 sm:p-2.5 bg-emerald-100 text-emerald-700 rounded-xl sm:rounded-2xl shrink-0">
+              <FileSpreadsheet size={20} className="sm:w-[22px] sm:h-[22px]" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800 font-sans tracking-tight">Import Data from Excel / CSV</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Upload, verify person assignments, and manage database records</p>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">Import Excel / CSV</h3>
+              <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">Upload, verify person assignments, and manage records</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={downloadSampleExcelTemplate}
-              className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              className="px-2.5 sm:px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer shadow-2xs"
               id="download-template-btn"
               title="Download pre-formatted sample Excel file"
             >
-              <Download size={13} className="text-indigo-600" />
-              Sample Template
+              <Download size={12} className="text-indigo-600" />
+              <span className="hidden xs:inline">Sample</span> Template
             </button>
             <button 
               type="button"
@@ -257,7 +257,7 @@ export default function ImportModal({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
+        <div className="p-3.5 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-5 flex-1">
           
           {/* Clear Success Alert */}
           {clearSuccess && (

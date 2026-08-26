@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Commitment, CATEGORIES } from '../types';
-import { X, DollarSign, Calendar, Layers, Clock, Info } from 'lucide-react';
+import { Layers, Clock, AlertCircle } from 'lucide-react';
 
 interface CommitmentFormProps {
   onSave: (commitment: Omit<Commitment, 'id' | 'userId' | 'createdAt'>) => void;
@@ -17,7 +17,6 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
     initialCommitment ? (initialCommitment.durationMonths === 999 ? '12' : initialCommitment.durationMonths.toString()) : '12'
   );
   
-  // Current month in YYYY-MM format
   const currentMonthStr = new Date().toISOString().substring(0, 7);
   const [startMonth, setStartMonth] = useState(initialCommitment?.startMonth || currentMonthStr);
   const [dueDay, setDueDay] = useState(initialCommitment?.dueDay?.toString() || '1');
@@ -34,7 +33,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
     setError('');
 
     if (!name.trim()) {
-      setError('Please enter a commitment name.');
+      setError('Please enter a bill or commitment name.');
       return;
     }
 
@@ -54,7 +53,7 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
     if (!isOngoing) {
       parsedDuration = parseInt(durationMonths);
       if (isNaN(parsedDuration) || parsedDuration < 1) {
-        setError('Please enter a valid duration of 1 month or more.');
+        setError('Please enter a duration of at least 1 month.');
         return;
       }
     }
@@ -72,233 +71,236 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-fade-in" id="commitment-form-modal">
-      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-200 max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden" id="commitment-form-container">
-        {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">
-            {initialCommitment ? 'Edit Commitment' : 'Add Monthly Commitment'}
-          </h3>
-          <button 
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-fade-in" id="commitment-form-modal">
+      <div className="bg-white rounded-t-[28px] sm:rounded-[26px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-black/[0.06] max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-ios-sheet" id="commitment-form-container">
+        
+        {/* iOS Grabber (Mobile) */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
+          <div className="w-10 h-1.5 bg-[#D1D1D6] rounded-full" />
+        </div>
+
+        {/* iOS Navigation Header */}
+        <div className="px-4 py-3 border-b border-[#E5E5EA] flex items-center justify-between shrink-0">
+          <button
+            type="button" 
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-200/50 rounded-lg transition-colors cursor-pointer"
-            id="close-form-btn"
+            className="text-sm font-normal text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer"
+            id="cancel-form-btn"
           >
-            <X size={18} />
+            Cancel
+          </button>
+
+          <h3 className="text-base font-semibold text-[#1C1C1E] tracking-tight">
+            {initialCommitment ? 'Edit Bill' : 'New Commitment'}
+          </h3>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="text-sm font-semibold text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer"
+            id="save-commitment-nav-btn"
+          >
+            {initialCommitment ? 'Done' : 'Add'}
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
+        {/* Form Body with iOS Inset Groups */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1 bg-[#F2F2F7]">
+          
           {error && (
-            <div className="p-2.5 sm:p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-100 flex items-center gap-2 animate-shake">
-              <span className="font-bold">Error:</span> {error}
+            <div className="p-3 bg-[#FF3B30]/10 border border-[#FF3B30]/20 text-[#FF3B30] text-xs rounded-xl font-medium flex items-center gap-2 animate-shake">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Commitment Name */}
-          <div>
-            <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Financial Commitment Name
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Grab Installment, Shopee Pay, Netflix"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder:text-slate-400 font-sans font-medium"
-              id="input-commitment-name"
-            />
-            <p className="mt-1 text-[10px] text-slate-400 font-medium">Specify the service provider or account name</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {/* Category */}
-            <div>
-              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Category
-              </label>
-              <div className="relative">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm appearance-none focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-medium cursor-pointer"
-                  id="select-commitment-category"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                  <Layers size={14} />
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly Amount */}
-            <div>
-              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Monthly Amount
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">RM</span>
+          {/* Group 1: General Info */}
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider px-2">
+              Bill Details
+            </span>
+            <div className="bg-white rounded-2xl border border-black/[0.06] shadow-2xs divide-y divide-[#E5E5EA] overflow-hidden">
+              
+              {/* Name Row */}
+              <div className="flex items-center px-4 py-2.5">
+                <span className="w-24 text-xs font-semibold text-[#1C1C1E] shrink-0">Name</span>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   required
-                  min="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-bold"
-                  id="input-commitment-amount"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Grab, Shopee, Netflix"
+                  className="w-full bg-transparent text-sm text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none"
+                  id="input-commitment-name"
                 />
               </div>
-            </div>
-          </div>
 
-          {/* Commitment Duration */}
-          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Type of commitment
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  id="checkbox-ongoing"
-                  checked={isOngoing}
-                  onChange={(e) => setIsOngoing(e.target.checked)}
-                  className="rounded-md border-slate-350 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
-                />
-                <label htmlFor="checkbox-ongoing" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                  Ongoing / Sub
-                </label>
-              </div>
-            </div>
-
-            {!isOngoing ? (
-              <div className="space-y-1 animate-fade-in" id="duration-input-container">
-                <label className="block text-[10px] sm:text-[11px] font-bold text-slate-400">
-                  Duration (How many months?)
-                </label>
-                <div className="relative">
+              {/* Amount Row */}
+              <div className="flex items-center px-4 py-2.5">
+                <span className="w-24 text-xs font-semibold text-[#1C1C1E] shrink-0">Amount</span>
+                <div className="flex items-center flex-1">
+                  <span className="text-xs font-bold text-[#8E8E93] mr-1.5">RM</span>
                   <input
                     type="number"
-                    min="1"
-                    required={!isOngoing}
-                    value={durationMonths}
-                    onChange={(e) => setDurationMonths(e.target.value)}
-                    placeholder="e.g. 6, 12, 24"
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-semibold"
-                    id="input-commitment-duration"
+                    step="0.01"
+                    required
+                    min="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-transparent text-sm font-bold text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none tabular-nums"
+                    id="input-commitment-amount"
                   />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
-                    Months
-                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="text-xs text-indigo-600 bg-indigo-50/70 p-2.5 rounded-xl flex items-start gap-2 border border-indigo-100 animate-fade-in" id="ongoing-notice">
-                <Clock size={14} className="mt-0.5 shrink-0" />
-                <span className="font-semibold text-[11px]">Ongoing commitments have no set end date (e.g. utilities, rent, streaming).</span>
+
+              {/* Category Row */}
+              <div className="flex items-center px-4 py-2.5">
+                <span className="w-24 text-xs font-semibold text-[#1C1C1E] shrink-0">Category</span>
+                <div className="relative flex-1">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-transparent text-sm text-[#007AFF] font-medium appearance-none focus:outline-none cursor-pointer"
+                    id="select-commitment-category"
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat} className="text-[#1C1C1E]">{cat}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {/* Start Month */}
-            <div>
-              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Start Month
-              </label>
-              <div className="relative">
+          {/* Group 2: Schedule & Timing */}
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider px-2">
+              Schedule & Duration
+            </span>
+            <div className="bg-white rounded-2xl border border-black/[0.06] shadow-2xs divide-y divide-[#E5E5EA] overflow-hidden">
+              
+              {/* Due Day */}
+              <div className="flex items-center px-4 py-2.5">
+                <span className="w-28 text-xs font-semibold text-[#1C1C1E] shrink-0">Due Day</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  required
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  placeholder="1 - 31"
+                  className="w-full bg-transparent text-sm text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none tabular-nums"
+                  id="input-commitment-dueday"
+                />
+              </div>
+
+              {/* Start Month */}
+              <div className="flex items-center px-4 py-2.5">
+                <span className="w-28 text-xs font-semibold text-[#1C1C1E] shrink-0">Start Month</span>
                 <input
                   type="month"
                   required
                   value={startMonth}
                   onChange={(e) => setStartMonth(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-medium cursor-pointer"
+                  className="w-full bg-transparent text-sm text-[#007AFF] font-medium focus:outline-none cursor-pointer"
                   id="input-commitment-start"
                 />
               </div>
-            </div>
 
-            {/* Payment Due Day */}
-            <div>
-              <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Due Day of Month
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                required
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                placeholder="e.g. 5"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 font-sans font-semibold"
-                id="input-commitment-dueday"
+              {/* Ongoing Switch Row */}
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <div>
+                  <span className="text-xs font-semibold text-[#1C1C1E] block">Ongoing Subscription</span>
+                  <span className="text-[10px] text-[#8E8E93]">No fixed end date</span>
+                </div>
+                {/* iOS Switch Toggle */}
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="checkbox-ongoing"
+                    checked={isOngoing}
+                    onChange={(e) => setIsOngoing(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-[#E5E5EA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#34C759]"></div>
+                </label>
+              </div>
+
+              {/* Duration in Months (if not ongoing) */}
+              {!isOngoing && (
+                <div className="flex items-center px-4 py-2.5 animate-fade-in">
+                  <span className="w-28 text-xs font-semibold text-[#1C1C1E] shrink-0">Duration</span>
+                  <div className="flex items-center flex-1">
+                    <input
+                      type="number"
+                      min="1"
+                      required={!isOngoing}
+                      value={durationMonths}
+                      onChange={(e) => setDurationMonths(e.target.value)}
+                      placeholder="12"
+                      className="w-full bg-transparent text-sm text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none tabular-nums"
+                      id="input-commitment-duration"
+                    />
+                    <span className="text-xs text-[#8E8E93] font-medium ml-2">Months</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Group 3: Split Assignment */}
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider px-2">
+              Assignment
+            </span>
+            <div className="bg-white rounded-2xl border border-black/[0.06] shadow-2xs p-2">
+              <div className="bg-[#767680]/12 p-1 rounded-xl flex items-center" id="user-selector-grid">
+                {['Person A', 'Person B'].map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setUser(u)}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      user === u
+                        ? 'bg-white text-[#1C1C1E] shadow-[0_2px_6px_rgba(0,0,0,0.12)]'
+                        : 'text-[#8E8E93] hover:text-[#1C1C1E]'
+                    }`}
+                    id={`btn-user-select-${u.replace(/\s+/g, '-')}`}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Group 4: Notes */}
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider px-2">
+              Notes (Optional)
+            </span>
+            <div className="bg-white rounded-2xl border border-black/[0.06] shadow-2xs p-3">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Account number, contract ID, cancellation link..."
+                rows={2}
+                className="w-full bg-transparent text-xs text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none resize-none leading-relaxed"
+                id="input-commitment-notes"
               />
             </div>
           </div>
 
-          {/* Belongs To User Selection */}
-          <div>
-            <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Belongs To (For Split Payment)
-            </label>
-            <div className="grid grid-cols-2 gap-2" id="user-selector-grid">
-              {['Person A', 'Person B'].map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setUser(u)}
-                  className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                    user === u
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/10'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
-                  }`}
-                  id={`btn-user-select-${u.replace(/\s+/g, '-')}`}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Notes (Optional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add details, link, account ID, or reminder notes..."
-              rows={2}
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 placeholder:text-slate-400 font-sans font-medium resize-none"
-              id="input-commitment-notes"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs sm:text-sm font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-              id="cancel-form-btn"
-            >
-              Cancel
-            </button>
+          {/* Primary Save Button */}
+          <div className="pt-2 pb-1">
             <button
               type="submit"
-              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-md shadow-indigo-600/10"
+              className="w-full py-3 bg-[#007AFF] hover:bg-[#0066D6] active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.25)] cursor-pointer"
               id="save-commitment-btn"
             >
-              {initialCommitment ? 'Update' : 'Add Bill'}
+              {initialCommitment ? 'Update Commitment' : 'Add Commitment'}
             </button>
           </div>
         </form>

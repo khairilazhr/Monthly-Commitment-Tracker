@@ -1,6 +1,6 @@
 import { Commitment, Payment, CATEGORY_COLORS, isCommitmentActive, formatMonthReadable, monthToVal, getPaymentCalendarDate } from '../types';
 import { exportCommitmentsToExcel, exportCommitmentsToCSV } from '../utils/excelImportExport';
-import { Check, Clock, Calendar, Edit2, Trash2, Tag, AlertCircle, Plus, ChevronDown, ChevronUp, Download, Upload, FileSpreadsheet, Search, X } from 'lucide-react';
+import { Check, Clock, Calendar, Edit3, Trash2, Tag, AlertCircle, Plus, ChevronDown, ChevronUp, Download, Upload, FileSpreadsheet, Search, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface CommitmentListProps {
@@ -73,20 +73,16 @@ export default function CommitmentList({
 
   const totalActiveCount = commitments.filter(c => isCommitmentActive(c, selectedMonth)).length;
 
-  // Helper to check if a due date has passed in the current calendar month
   const isOverdue = (commitment: Commitment) => {
     const today = new Date();
     const currentYearMonth = today.toISOString().substring(0, 7);
     
-    // Only check overdue if we are viewing the current month or a past month
     if (selectedMonth > currentYearMonth) return false;
     
-    // If it's a past month, any pending is overdue
     if (selectedMonth < currentYearMonth) {
       return !payments[commitment.id] || payments[commitment.id].status !== 'paid';
     }
     
-    // If it's the current month, check if dueDay has passed
     const currentDay = today.getDate();
     const isPending = !payments[commitment.id] || payments[commitment.id].status !== 'paid';
     return isPending && commitment.dueDay < currentDay;
@@ -94,12 +90,12 @@ export default function CommitmentList({
 
   const getInstallmentInfo = (commitment: Commitment) => {
     if (commitment.durationMonths === 999) {
-      return 'Continuous billing';
+      return 'Ongoing subscription';
     }
     const startVal = monthToVal(commitment.startMonth);
     const selectedVal = monthToVal(selectedMonth);
     const elapsed = selectedVal - startVal + 1;
-    return `${elapsed} of ${commitment.durationMonths} months`;
+    return `${elapsed} of ${commitment.durationMonths} mos`;
   };
 
   const toggleNotes = (id: string) => {
@@ -116,43 +112,54 @@ export default function CommitmentList({
     });
   };
 
-  const getInitialBubbleColors = (name: string, category: string) => {
+  // iOS App Icon style colors
+  const getIconBackground = (name: string, category: string) => {
     const lower = name.toLowerCase();
-    if (lower.includes('grab')) return 'bg-orange-100 text-orange-600 border-orange-200';
-    if (lower.includes('shopee') || lower.includes('spay')) return 'bg-rose-100 text-rose-600 border-rose-200';
-    if (lower.includes('netflix') || lower.includes('spotify') || lower.includes('sub')) return 'bg-emerald-100 text-emerald-600 border-emerald-200';
+    if (lower.includes('grab')) return 'bg-[#00B14F] text-white';
+    if (lower.includes('shopee') || lower.includes('spay')) return 'bg-[#EE4D2D] text-white';
+    if (lower.includes('netflix')) return 'bg-[#E50914] text-white';
+    if (lower.includes('spotify')) return 'bg-[#1DB954] text-white';
+    if (lower.includes('apple')) return 'bg-[#000000] text-white';
+    if (lower.includes('unifi') || lower.includes('maxis') || lower.includes('celcom') || lower.includes('digi')) return 'bg-[#007AFF] text-white';
     
     switch (category) {
-      case 'Installment': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'Subscription': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'Loan': return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'Rent': return 'bg-rose-100 text-rose-700 border-rose-200';
-      case 'Utility': return 'bg-sky-100 text-sky-700 border-sky-200';
-      case 'Insurance': return 'bg-teal-100 text-teal-700 border-teal-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'Installment': return 'bg-[#FF9500] text-white';
+      case 'Subscription': return 'bg-[#007AFF] text-white';
+      case 'Loan': return 'bg-[#FF3B30] text-white';
+      case 'Rent': return 'bg-[#AF52DE] text-white';
+      case 'Utility': return 'bg-[#34C759] text-white';
+      case 'Insurance': return 'bg-[#5856D6] text-white';
+      default: return 'bg-[#8E8E93] text-white';
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-2xs p-3.5 sm:p-5 md:p-6" id="commitment-list-section">
-      {/* Header & Main Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+    <div className="space-y-4" id="commitment-list-section">
+      
+      {/* iOS Section Header & Primary Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
         <div>
-          <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">Active Commitments</h3>
-          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Commitment schedule & settlement list for {formatMonthReadable(selectedMonth)}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-[#1C1C1E] tracking-tight">
+            Commitments
+          </h2>
+          <p className="text-xs text-[#8E8E93] mt-0.5">
+            {formatMonthReadable(selectedMonth)} • {activeCommitments.length} item{activeCommitments.length === 1 ? '' : 's'}
+          </p>
         </div>
+
+        {/* Action Buttons Toolbar */}
         <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
           {commitments.length > 0 && (
             <div className="relative">
               <button
                 onClick={() => setIsExportMenuOpen(prev => !prev)}
-                className="px-2.5 sm:px-3.5 py-2 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-2xs"
+                className="px-3 py-1.5 bg-white hover:bg-[#F2F2F7] active:scale-[0.98] text-[#1C1C1E] border border-black/[0.08] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                 id="list-export-excel-btn"
-                title="Export commitments to Excel (.xlsx) or CSV"
+                title="Export Data"
               >
-                <Download size={14} className="text-emerald-600 stroke-[2.5]" />
-                <span className="hidden xs:inline sm:inline">Export</span>
-                <ChevronDown size={13} className="text-slate-400" />
+                <Download size={14} className="text-[#007AFF]" />
+                <span>Export</span>
+                <ChevronDown size={12} className="text-[#8E8E93]" />
               </button>
 
               {isExportMenuOpen && (
@@ -161,75 +168,76 @@ export default function CommitmentList({
                     className="fixed inset-0 z-20" 
                     onClick={() => setIsExportMenuOpen(false)} 
                   />
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl py-2 z-30 animate-fade-in text-xs font-semibold">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Current Filtered Month ({activeCommitments.length})
+                  <div className="absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-xl rounded-2xl border border-black/[0.08] shadow-[0_10px_30px_rgba(0,0,0,0.12)] py-1.5 z-30 animate-ios-sheet text-xs font-medium divide-y divide-[#E5E5EA]">
+                    <div className="px-3.5 py-1.5 text-[10px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+                      Current Month ({activeCommitments.length})
                     </div>
                     <button
                       onClick={() => handleExportXLSX(false)}
-                      className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="w-full text-left px-3.5 py-2 hover:bg-[#F2F2F7] text-[#1C1C1E] flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      <FileSpreadsheet size={15} className="text-emerald-600" />
-                      Excel Spreadsheet (.xlsx)
+                      <FileSpreadsheet size={15} className="text-[#34C759]" />
+                      <span>Excel Spreadsheet (.xlsx)</span>
                     </button>
                     <button
                       onClick={() => handleExportCSV(false)}
-                      className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 hover:text-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="w-full text-left px-3.5 py-2 hover:bg-[#F2F2F7] text-[#1C1C1E] flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      <Download size={15} className="text-slate-500" />
-                      CSV File (.csv)
+                      <Download size={15} className="text-[#007AFF]" />
+                      <span>CSV Document (.csv)</span>
                     </button>
 
-                    <div className="my-1 border-t border-slate-100" />
-                    
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      All Commitments Database ({commitments.length})
+                    <div className="px-3.5 py-1.5 text-[10px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+                      All Database ({commitments.length})
                     </div>
                     <button
                       onClick={() => handleExportXLSX(true)}
-                      className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="w-full text-left px-3.5 py-2 hover:bg-[#F2F2F7] text-[#1C1C1E] flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      <FileSpreadsheet size={15} className="text-emerald-600" />
-                      Export All to Excel (.xlsx)
+                      <FileSpreadsheet size={15} className="text-[#34C759]" />
+                      <span>Export All to Excel</span>
                     </button>
                     <button
                       onClick={() => handleExportCSV(true)}
-                      className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 hover:text-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="w-full text-left px-3.5 py-2 hover:bg-[#F2F2F7] text-[#1C1C1E] flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      <Download size={15} className="text-slate-500" />
-                      Export All to CSV (.csv)
+                      <Download size={15} className="text-[#007AFF]" />
+                      <span>Export All to CSV</span>
                     </button>
                   </div>
                 </>
               )}
             </div>
           )}
+
           <button
             onClick={onImportClick}
-            className="px-2.5 sm:px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-2xs"
+            className="px-3 py-1.5 bg-white hover:bg-[#F2F2F7] active:scale-[0.98] text-[#1C1C1E] border border-black/[0.08] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
             id="list-import-excel-btn"
-            title="Import commitments from an Excel or CSV file"
+            title="Import Excel or CSV"
           >
-            <Upload size={14} className="text-emerald-600 stroke-[2.5]" />
-            <span className="hidden xs:inline sm:inline">Import</span>
+            <Upload size={14} className="text-[#34C759]" />
+            <span>Import</span>
           </button>
+
           <button
             onClick={onAddClick}
-            className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-indigo-600/10 active:scale-95"
+            className="px-3.5 py-1.5 bg-[#007AFF] hover:bg-[#0066D6] active:scale-[0.98] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(0,122,255,0.25)] cursor-pointer"
             id="list-add-commitment-btn"
           >
-            <Plus size={14} className="stroke-[2.5]" />
+            <Plus size={15} strokeWidth={2.5} />
             <span>Add Bill</span>
           </button>
         </div>
       </div>
 
+      {/* iOS Segmented Filter & Search Toolbar */}
       {totalActiveCount > 0 && (
-        <div className="space-y-3 mb-4 sm:mb-6" id="filters-container">
-          {/* Controls Bar: User Split Filter Toggles + Search Input */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-in">
-            {/* User Filter Bar */}
-            <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-150 rounded-xl sm:rounded-2xl w-full sm:w-fit overflow-x-auto" id="user-filter-bar">
+        <div className="space-y-3" id="filters-container">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            
+            {/* iOS Segmented Control */}
+            <div className="bg-[#767680]/12 p-1 rounded-xl flex items-center w-full sm:w-auto" id="user-filter-bar">
               {['Both', 'Person A', 'Person B'].map((filter) => {
                 const count = commitments
                   .filter(c => isCommitmentActive(c, selectedMonth))
@@ -238,20 +246,22 @@ export default function CommitmentList({
                     return c.user === filter;
                   }).length;
 
+                const isSelected = userFilter === filter;
+
                 return (
                   <button
                     key={filter}
                     onClick={() => onUserFilterChange(filter)}
-                    className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      userFilter === filter
-                        ? 'bg-white text-indigo-600 shadow-2xs border border-slate-200/80 font-extrabold'
-                        : 'text-slate-500 hover:text-slate-800 border border-transparent'
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-white text-[#1C1C1E] shadow-[0_2px_6px_rgba(0,0,0,0.12)]'
+                        : 'text-[#8E8E93] hover:text-[#1C1C1E]'
                     }`}
                     id={`filter-btn-${filter.replace(/\s+/g, '-')}`}
                   >
-                    <span>{filter === 'Both' ? 'Both (A+B)' : filter}</span>
+                    <span>{filter === 'Both' ? 'All (A+B)' : filter}</span>
                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      userFilter === filter ? 'bg-indigo-50 text-indigo-600 font-extrabold' : 'bg-slate-200 text-slate-600'
+                      isSelected ? 'bg-[#007AFF]/10 text-[#007AFF] font-bold' : 'bg-black/5 text-[#8E8E93]'
                     }`}>
                       {count}
                     </span>
@@ -260,22 +270,22 @@ export default function CommitmentList({
               })}
             </div>
 
-            {/* Search Input Bar */}
-            <div className="relative w-full sm:w-72 md:w-80" id="commitment-search-box">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            {/* iOS Search Bar */}
+            <div className="relative w-full sm:w-72" id="commitment-search-box">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8E8E93] pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search bills, categories, notes..."
-                className="w-full pl-8.5 pr-8 py-2 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl sm:rounded-2xl text-base sm:text-xs font-medium sm:font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none transition-all shadow-2xs"
+                placeholder="Search bills..."
+                className="w-full pl-8.5 pr-8 py-1.5 bg-[#767680]/12 hover:bg-[#767680]/16 focus:bg-white border border-transparent focus:border-[#007AFF]/30 rounded-xl text-sm text-[#1C1C1E] placeholder:text-[#8E8E93] focus:outline-none transition-all"
                 id="commitment-search-input"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-[#8E8E93] hover:text-[#1C1C1E] rounded-full hover:bg-black/5 transition-colors cursor-pointer"
                   title="Clear search"
                   id="clear-commitment-search-btn"
                 >
@@ -285,202 +295,188 @@ export default function CommitmentList({
             </div>
           </div>
 
-          {/* Filter & Search Summary Banner */}
-          <div className="bg-slate-50/70 border border-slate-200/70 p-3 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 animate-fade-in" id="filter-summary-bar">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {userFilter === 'Both' ? 'Total' : `${userFilter}`}:
+          {/* iOS Summary Capsule */}
+          <div className="bg-white px-4 py-2.5 rounded-xl border border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs shadow-2xs" id="filter-summary-bar">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[#8E8E93] uppercase tracking-wider text-[10px]">
+                {userFilter === 'Both' ? 'Month Total' : userFilter}:
               </span>
-              <span className="text-xs sm:text-sm font-extrabold text-slate-800 font-sans tracking-tight">{formatCurrency(filteredTotal)}</span>
-              
+              <span className="font-bold text-[#1C1C1E] tabular-nums">
+                {formatCurrency(filteredTotal)}
+              </span>
               {searchQueryTrimmed && (
-                <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-md">
-                  {activeCommitments.length} matching "{searchQuery}"
+                <span className="text-[11px] font-semibold text-[#007AFF] bg-[#007AFF]/10 px-2 py-0.5 rounded-md">
+                  {activeCommitments.length} matching
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 sm:gap-4 text-[11px] sm:text-xs font-bold">
-              <span className="text-emerald-600 flex items-center gap-1">
-                Paid: <strong>{formatCurrency(paidFilteredTotal)}</strong>
+            <div className="flex items-center gap-4 text-xs font-semibold">
+              <span className="text-[#34C759]">
+                Paid: <span className="tabular-nums">{formatCurrency(paidFilteredTotal)}</span>
               </span>
-              <span className="text-amber-600 flex items-center gap-1">
-                Remaining: <strong>{formatCurrency(filteredTotal - paidFilteredTotal)}</strong>
+              <span className="text-[#FF9500]">
+                Remaining: <span className="tabular-nums">{formatCurrency(filteredTotal - paidFilteredTotal)}</span>
               </span>
             </div>
           </div>
         </div>
       )}
 
+      {/* iOS Inset Grouped List State Handling */}
       {totalActiveCount === 0 ? (
-        <div className="py-10 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl animate-fade-in" id="empty-commitments-state">
-          <Calendar className="mx-auto text-slate-400 mb-3" size={28} />
-          <h4 className="text-sm font-semibold text-slate-700">No active commitments this month</h4>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-            You don't have any installments, subscriptions, or payments scheduled for this month.
+        <div className="py-12 text-center bg-white rounded-2xl border border-black/[0.06] p-6 shadow-2xs animate-fade-in" id="empty-commitments-state">
+          <div className="w-12 h-12 rounded-full bg-[#007AFF]/10 text-[#007AFF] flex items-center justify-center mx-auto mb-3">
+            <Calendar size={22} strokeWidth={2} />
+          </div>
+          <h4 className="text-base font-bold text-[#1C1C1E]">No Commitments This Month</h4>
+          <p className="text-xs text-[#8E8E93] mt-1 max-w-xs mx-auto">
+            You don't have any installments, subscriptions, or bills scheduled for {formatMonthReadable(selectedMonth)}.
           </p>
           <button
             onClick={onAddClick}
-            className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1.5"
+            className="mt-4 px-4 py-2 bg-[#007AFF] hover:bg-[#0066D6] text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer inline-flex items-center gap-1.5 active:scale-[0.98]"
             id="empty-state-add-btn"
           >
-            <Plus size={14} /> Add your first commitment
+            <Plus size={14} strokeWidth={2.5} /> Add First Bill
           </button>
         </div>
       ) : activeCommitments.length === 0 ? (
-        searchQueryTrimmed ? (
-          <div className="py-10 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl animate-fade-in" id="empty-search-state">
-            <Search className="mx-auto text-slate-400 mb-3" size={28} />
-            <h4 className="text-sm font-bold text-slate-700">No commitments match "{searchQuery}"</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-              We couldn't find any active commitments matching your search term under {userFilter === 'Both' ? 'all users' : userFilter}.
-            </p>
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="mt-4 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              id="clear-search-empty-btn"
-            >
-              <X size={13} /> Clear Search Query
-            </button>
-          </div>
-        ) : (
-          <div className="py-10 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl animate-fade-in" id="empty-filter-state">
-            <Tag className="mx-auto text-slate-400 mb-3" size={28} />
-            <h4 className="text-sm font-semibold text-slate-700">No commitments found for this filter</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-              There are no bills assigned to {userFilter === 'Both' ? 'Both' : userFilter} this month.
-            </p>
-          </div>
-        )
+        <div className="py-10 text-center bg-white rounded-2xl border border-black/[0.06] p-6 shadow-2xs animate-fade-in" id="empty-search-state">
+          <Search className="mx-auto text-[#8E8E93] mb-2" size={24} />
+          <h4 className="text-sm font-bold text-[#1C1C1E]">No Results Found</h4>
+          <p className="text-xs text-[#8E8E93] mt-1">
+            No bills match "{searchQuery}" under {userFilter === 'Both' ? 'all users' : userFilter}.
+          </p>
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="mt-3 px-3 py-1.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            id="clear-search-empty-btn"
+          >
+            Clear Search
+          </button>
+        </div>
       ) : (
-        <div className="space-y-2.5 sm:space-y-3.5 animate-fade-in" id="commitments-cards-container">
+        /* iOS Inset Grouped Table Card */
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden divide-y divide-[#E5E5EA]" id="commitments-cards-container">
           {activeCommitments.map((commitment) => {
             const payment = payments[commitment.id];
             const isPaid = payment?.status === 'paid';
             const isBillOverdue = isOverdue(commitment);
             const badgeStyle = CATEGORY_COLORS[commitment.category] || CATEGORY_COLORS['Other'];
-            const bubbleColors = getInitialBubbleColors(commitment.name, commitment.category);
+            const iconBg = getIconBackground(commitment.name, commitment.category);
             const initial = commitment.name.charAt(0).toUpperCase();
             
             return (
               <div 
                 key={commitment.id}
-                className={`group border rounded-xl sm:rounded-2xl transition-all duration-200 overflow-hidden ${
-                  isPaid 
-                    ? 'border-emerald-100 bg-emerald-50/15' 
-                    : isBillOverdue
-                    ? 'border-red-200 bg-red-50/10 hover:border-red-300'
-                    : 'border-slate-200 hover:border-slate-300 bg-white shadow-2xs'
+                className={`transition-colors duration-150 ${
+                  isPaid ? 'bg-[#F2F2F7]/40 hover:bg-[#F2F2F7]/70' : 'hover:bg-[#F2F2F7]/40'
                 }`}
                 id={`commitment-card-${commitment.id}`}
               >
-                <div className="p-3 sm:p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   
-                  {/* Left Column: Status toggle, Initial Bubble, Details */}
-                  <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 flex-1 min-w-0">
-                    {/* Status Toggle Circle */}
+                  {/* Left: Checkmark, App Icon, Name, Category */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    
+                    {/* iOS Reminders Checkmark Button */}
                     <button
                       onClick={() => onTogglePayment(commitment.id)}
-                      className={`mt-0.5 shrink-0 w-7 h-7 sm:w-6 sm:h-6 rounded-full border-2 sm:border flex items-center justify-center transition-all cursor-pointer ${
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90 ${
                         isPaid 
-                          ? 'bg-emerald-500 border-emerald-500 text-white' 
+                          ? 'bg-[#34C759] border-[#34C759] text-white shadow-2xs' 
                           : isBillOverdue
-                          ? 'border-red-400 hover:border-red-500 hover:bg-red-50 bg-white'
-                          : 'border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/30 bg-white'
+                          ? 'border-[#FF3B30] hover:bg-[#FF3B30]/10'
+                          : 'border-[#C7C7CC] hover:border-[#007AFF] hover:bg-[#007AFF]/5'
                       }`}
                       id={`toggle-payment-btn-${commitment.id}`}
                       title={isPaid ? "Mark as Pending" : "Mark as Paid"}
                     >
-                      {isPaid ? (
-                        <Check size={14} strokeWidth={3} />
-                      ) : (
-                        <span className="w-2 h-2 rounded-full bg-slate-300 group-hover:bg-indigo-500 transition-colors" />
-                      )}
+                      {isPaid && <Check size={13} strokeWidth={3} />}
                     </button>
 
-                    {/* Brand Initial Bubble */}
-                    <div className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-xl border flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 italic ${bubbleColors}`}>
+                    {/* iOS App Squircle Badge */}
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-[10px] flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs ${iconBg}`}>
                       {initial}
                     </div>
 
-                    {/* Details */}
+                    {/* Info */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                        <h4 className={`font-bold text-xs sm:text-sm md:text-base font-sans tracking-tight transition-all truncate max-w-[180px] sm:max-w-none ${isPaid ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`text-sm font-semibold tracking-tight truncate max-w-[200px] sm:max-w-none ${
+                          isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'
+                        }`}>
                           {commitment.name}
-                        </h4>
-                        
-                        {/* Category Badge */}
-                        <span className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-bold border rounded-md uppercase tracking-wider ${badgeStyle}`}>
+                        </span>
+
+                        {/* Category Pill */}
+                        <span className={`px-1.5 py-0.2 text-[10px] font-semibold rounded-md border ${badgeStyle}`}>
                           {commitment.category}
                         </span>
 
-                        {/* User Assignment Badge */}
-                        <span className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-bold border rounded-md uppercase tracking-wider ${
+                        {/* User Assignment Pill */}
+                        <span className={`px-1.5 py-0.2 text-[10px] font-semibold rounded-md ${
                           commitment.user === 'Person A'
-                            ? 'bg-rose-50 text-rose-700 border-rose-150'
+                            ? 'bg-[#FF2D55]/10 text-[#FF2D55]'
                             : commitment.user === 'Person B'
-                            ? 'bg-sky-50 text-sky-700 border-sky-150'
-                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                            ? 'bg-[#007AFF]/10 text-[#007AFF]'
+                            : 'bg-black/5 text-[#8E8E93]'
                         }`} id={`user-badge-${commitment.id}`}>
                           {commitment.user === 'Both' || !commitment.user ? 'Both' : commitment.user}
                         </span>
 
                         {/* Overdue Badge */}
                         {isBillOverdue && (
-                          <span className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-bold border border-red-200 bg-red-100 text-red-800 rounded-md flex items-center gap-1">
-                            <AlertCircle size={10} /> Overdue
+                          <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-[#FF3B30]/10 text-[#FF3B30] rounded-md flex items-center gap-1">
+                            <AlertCircle size={10} strokeWidth={2.5} /> Overdue
                           </span>
                         )}
                       </div>
 
-                      {/* Sub-info */}
-                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] sm:text-xs text-slate-400 mt-1">
-                        <span className="flex items-center gap-1 font-medium">
-                          <Calendar size={11} className="text-slate-400" />
-                          Due {getPaymentCalendarDate(commitment.dueDay, selectedMonth).readable}
-                        </span>
-                        <span className="w-1 h-1 rounded-full bg-slate-300 hidden xs:inline" />
-                        <span className="flex items-center gap-1 font-medium text-slate-500">
-                          <Clock size={11} className="text-slate-400" />
-                          {getInstallmentInfo(commitment)}
-                        </span>
+                      {/* Sub-label */}
+                      <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-[#8E8E93] mt-0.5">
+                        <span>Due {getPaymentCalendarDate(commitment.dueDay, selectedMonth).readable}</span>
+                        <span>•</span>
+                        <span>{getInstallmentInfo(commitment)}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Column: Amount and Actions */}
-                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 pl-11 sm:pl-0">
+                  {/* Right: Amount & Actions */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 pl-9 sm:pl-0">
                     <div className="text-left sm:text-right">
-                      <p className={`text-base sm:text-lg font-bold font-sans tracking-tight ${isPaid ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                      <span className={`text-sm sm:text-base font-bold tabular-nums tracking-tight ${
+                        isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'
+                      }`}>
                         {formatCurrency(commitment.amount)}
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-slate-400">Monthly</p>
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-0.5 sm:gap-1">
+                    {/* iOS Action Buttons */}
+                    <div className="flex items-center gap-1">
                       {commitment.notes && (
                         <button
                           onClick={() => toggleNotes(commitment.id)}
-                          className="p-2 sm:p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                          title="View Notes"
+                          className="p-1.5 text-[#8E8E93] hover:text-[#1C1C1E] hover:bg-black/5 rounded-lg transition-colors cursor-pointer"
+                          title="Notes"
                         >
                           {expandedNotes[commitment.id] ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                         </button>
                       )}
                       <button
                         onClick={() => onEdit(commitment)}
-                        className="p-2 sm:p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-lg transition-colors cursor-pointer"
                         id={`edit-commitment-btn-${commitment.id}`}
-                        title="Edit Commitment"
+                        title="Edit"
                       >
-                        <Edit2 size={15} />
+                        <Edit3 size={15} />
                       </button>
                       <button
                         onClick={() => onDelete(commitment.id)}
-                        className="p-2 sm:p-1.5 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-lg transition-colors cursor-pointer"
                         id={`delete-commitment-btn-${commitment.id}`}
-                        title="Delete Commitment"
+                        title="Delete"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -488,13 +484,13 @@ export default function CommitmentList({
                   </div>
                 </div>
 
-                {/* Expanded Notes Section */}
+                {/* Notes Disclosure */}
                 {commitment.notes && expandedNotes[commitment.id] && (
-                  <div className="px-3.5 sm:px-5 pb-3.5 pt-1 bg-slate-50 border-t border-slate-100 animate-slide-down">
-                    <p className="text-xs text-slate-600 bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200/60 leading-relaxed font-sans font-medium">
-                      <span className="font-semibold text-slate-400 uppercase tracking-wider text-[9px] block mb-1">Notes:</span>
+                  <div className="px-4 pb-3.5 pt-0.5 animate-ios-sheet">
+                    <div className="p-2.5 bg-[#F2F2F7] rounded-xl text-xs text-[#3C3C43] leading-relaxed">
+                      <span className="text-[10px] font-semibold text-[#8E8E93] uppercase tracking-wider block mb-0.5">Note:</span>
                       {commitment.notes}
-                    </p>
+                    </div>
                   </div>
                 )}
               </div>

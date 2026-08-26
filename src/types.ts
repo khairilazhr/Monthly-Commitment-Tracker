@@ -41,13 +41,13 @@ export const CATEGORIES: CommitmentCategory[] = [
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  Installment: 'bg-amber-100 text-amber-800 border-amber-200',
-  Subscription: 'bg-blue-100 text-blue-800 border-blue-200',
-  Loan: 'bg-red-100 text-red-800 border-red-200',
-  Rent: 'bg-purple-100 text-purple-800 border-purple-200',
-  Utility: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  Insurance: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  Other: 'bg-slate-100 text-slate-800 border-slate-200',
+  Installment: 'bg-[#FF9500]/12 text-[#FF9500] border-[#FF9500]/20',
+  Subscription: 'bg-[#007AFF]/12 text-[#007AFF] border-[#007AFF]/20',
+  Loan: 'bg-[#FF3B30]/12 text-[#FF3B30] border-[#FF3B30]/20',
+  Rent: 'bg-[#AF52DE]/12 text-[#AF52DE] border-[#AF52DE]/20',
+  Utility: 'bg-[#34C759]/12 text-[#34C759] border-[#34C759]/20',
+  Insurance: 'bg-[#5856D6]/12 text-[#5856D6] border-[#5856D6]/20',
+  Other: 'bg-[#8E8E93]/15 text-[#636366] border-[#8E8E93]/20',
 };
 
 // Converts YYYY-MM to an absolute month index for easy calculations

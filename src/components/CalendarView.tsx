@@ -1,6 +1,6 @@
-import { Commitment, Payment, isCommitmentActive, formatMonthReadable, getPaymentCalendarDate } from '../types';
+import { Commitment, Payment, isCommitmentActive, formatMonthReadable } from '../types';
 import { useState } from 'react';
-import { Check, Clock, AlertCircle, Calendar } from 'lucide-react';
+import { Check, Clock, AlertCircle, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
 
 interface CalendarViewProps {
   commitments: Commitment[];
@@ -12,11 +12,9 @@ interface CalendarViewProps {
 export default function CalendarView({ commitments, payments, selectedMonth, onTogglePayment }: CalendarViewProps) {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
-  // Parse selected month
   const [year, month] = selectedMonth.split('-').map(Number);
   
   // Billing cycle runs from 25th of selected month to 24th of the NEXT month.
-  // E.g., for June 2026 (YYYY-MM = 2026-06): June 25th to July 24th.
   const startDate = new Date(year, month - 1, 25);
   
   let nextMonth = month + 1;
@@ -27,7 +25,6 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
   }
   const endDate = new Date(nextYear, nextMonth - 1, 24);
 
-  // Get all dates in this billing cycle
   const cycleDates: Date[] = [];
   const tempDate = new Date(startDate);
   while (tempDate <= endDate) {
@@ -35,26 +32,20 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
     tempDate.setDate(tempDate.getDate() + 1);
   }
 
-  // Day of the week for the first day of the cycle (0 = Sunday, 6 = Saturday)
   const firstDayOfWeek = startDate.getDay();
-
-  // Active commitments for this month
   const activeCommitments = commitments.filter(c => isCommitmentActive(c, selectedMonth));
 
-  // Find commitments due on a specific date
   const getCommitmentsForDate = (date: Date) => {
     const dayOfMonth = date.getDate();
     return activeCommitments.filter(c => c.dueDay === dayOfMonth);
   };
 
-  // Get status details for a specific date
   const getDateStatus = (date: Date) => {
     const coms = getCommitmentsForDate(date);
     if (coms.length === 0) return null;
 
     const allPaid = coms.every(c => payments[c.id]?.status === 'paid');
     
-    // Check if overdue
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -75,20 +66,15 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
     };
   };
 
-  // Generate calendar grid array
   const calendarCells = [];
-  
-  // Add blank empty cells for offset
   for (let i = 0; i < firstDayOfWeek; i++) {
     calendarCells.push(null);
   }
-  
-  // Add days of the cycle
   for (const d of cycleDates) {
     calendarCells.push(d);
   }
 
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const selectedDayCommitments = selectedDay ? getCommitmentsForDate(selectedDay) : [];
 
   const formatCurrency = (val: number) => {
@@ -99,32 +85,35 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
   };
 
   return (
-    <div className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-2xs p-3.5 sm:p-5 md:p-6" id="calendar-view-section">
-      <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6 border-b border-slate-100 pb-3 sm:pb-4">
-        <div className="p-2 sm:p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100/30 shrink-0">
-          <Calendar size={16} className="sm:w-[18px] sm:h-[18px]" />
-        </div>
-        <div>
-          <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">Payment Due Schedule</h3>
-          <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Billing cycle calendar for {formatMonthReadable(selectedMonth)} (25th to 24th)</p>
-        </div>
+    <div className="space-y-4" id="calendar-view-section">
+      
+      {/* iOS Section Title */}
+      <div className="px-1">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#1C1C1E] tracking-tight">
+          Schedule
+        </h2>
+        <p className="text-xs text-[#8E8E93] mt-0.5">
+          Billing cycle {formatMonthReadable(selectedMonth)} (25th – 24th)
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6" id="calendar-grid-layout">
-        {/* Calendar Grid */}
-        <div className="lg:col-span-7 space-y-3 sm:space-y-4" id="calendar-wrapper">
-          {/* Days of week header */}
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-            {daysOfWeek.map(d => (
-              <div key={d} className="py-0.5 sm:py-1 truncate">{d}</div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" id="calendar-grid-layout">
+        
+        {/* Apple Calendar Grid Inset Card */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5" id="calendar-wrapper">
+          
+          {/* Days of Week Header */}
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[#8E8E93] mb-2">
+            {daysOfWeek.map((d, i) => (
+              <div key={i} className="py-1">{d}</div>
             ))}
           </div>
 
-          {/* Calendar days grid */}
+          {/* Days Grid */}
           <div className="grid grid-cols-7 gap-1 sm:gap-1.5" id="calendar-days-grid">
             {calendarCells.map((date, idx) => {
               if (date === null) {
-                return <div key={`empty-${idx}`} className="aspect-square bg-slate-50/40 rounded-lg sm:rounded-xl border border-dashed border-slate-100" />;
+                return <div key={`empty-${idx}`} className="aspect-square rounded-xl" />;
               }
 
               const day = date.getDate();
@@ -138,133 +127,133 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
                                  selectedDay.getMonth() === date.getMonth() && 
                                  selectedDay.getFullYear() === date.getFullYear();
 
-              let cellStyle = 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700';
-              let badgeStyle = '';
+              let cellBg = 'hover:bg-[#F2F2F7] text-[#1C1C1E]';
+              let indicatorColor = '';
 
               if (status) {
                 if (status.allPaid) {
-                  cellStyle = 'bg-emerald-50 hover:bg-emerald-100/75 border-emerald-200 text-emerald-800';
-                  badgeStyle = 'bg-emerald-500 text-white';
+                  cellBg = 'bg-[#34C759]/10 text-[#1C1C1E]';
+                  indicatorColor = 'bg-[#34C759]';
                 } else if (status.isAnyOverdue) {
-                  cellStyle = 'bg-red-50 hover:bg-red-100/75 border-red-200 text-red-900 font-semibold';
-                  badgeStyle = 'bg-red-500 text-white animate-pulse';
+                  cellBg = 'bg-[#FF3B30]/10 text-[#FF3B30] font-bold';
+                  indicatorColor = 'bg-[#FF3B30]';
                 } else {
-                  cellStyle = 'bg-indigo-50 hover:bg-indigo-100/75 border-indigo-200 text-indigo-900 font-semibold';
-                  badgeStyle = 'bg-indigo-600 text-white';
+                  cellBg = 'bg-[#007AFF]/10 text-[#007AFF] font-semibold';
+                  indicatorColor = 'bg-[#007AFF]';
                 }
-              }
-
-              if (isTodayCell) {
-                cellStyle += ' ring-2 ring-indigo-600/50 ring-offset-1 sm:ring-offset-2';
-              }
-
-              if (isSelected) {
-                cellStyle += ' border-2 border-slate-700 shadow-xs';
               }
 
               return (
                 <button
-                  key={`date-${date.toISOString()}`}
+                  key={`day-${day}-${date.getMonth()}`}
                   onClick={() => setSelectedDay(date)}
-                  className={`aspect-square p-1 sm:p-1.5 flex flex-col justify-between items-center rounded-lg sm:rounded-xl border transition-all relative cursor-pointer ${cellStyle}`}
-                  id={`calendar-day-cell-${date.toISOString()}`}
+                  className={`aspect-square p-1 sm:p-1.5 rounded-xl flex flex-col items-center justify-between transition-all cursor-pointer relative ${cellBg} ${
+                    isSelected ? 'ring-2 ring-[#007AFF] bg-[#007AFF]/15 shadow-2xs' : ''
+                  } ${isTodayCell ? 'font-bold' : ''}`}
                 >
-                  <span className={`text-[10px] sm:text-xs font-semibold rounded-md w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center ${isTodayCell ? 'bg-indigo-600 text-white font-bold' : ''}`}>
+                  <span className={`text-xs sm:text-sm leading-none mt-0.5 ${
+                    isTodayCell ? 'w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#007AFF] text-white flex items-center justify-center -mt-0.5' : ''
+                  }`}>
                     {day}
                   </span>
-                  
-                  {status && (
-                    <span className={`text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-bold ${badgeStyle}`}>
-                      {status.count} <span className="hidden xs:inline">due</span>
-                    </span>
+
+                  {status ? (
+                    <div className="flex items-center gap-0.5 mt-auto mb-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${indicatorColor}`} />
+                      {status.count > 1 && (
+                        <span className="text-[9px] font-bold text-[#8E8E93] leading-none">
+                          {status.count}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="w-1.5 h-1.5" />
                   )}
                 </button>
               );
             })}
           </div>
 
-          <div className="flex flex-wrap gap-2.5 sm:gap-4 text-[9px] sm:text-[10px] text-slate-500 bg-slate-50 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/60 justify-center font-semibold">
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm bg-emerald-500" />
-              <span>Paid</span>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm bg-indigo-500" />
-              <span>Pending</span>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm bg-red-500" />
-              <span>Overdue</span>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-xs sm:rounded-sm border border-indigo-600 ring-1 ring-indigo-600" />
-              <span>Today</span>
-            </div>
+          {/* Calendar Status Legend */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#8E8E93] font-medium pt-4 mt-4 border-t border-[#E5E5EA]">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#34C759]" /> Settled
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#007AFF]" /> Scheduled
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#FF3B30]" /> Overdue
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#007AFF]" /> Today
+            </span>
           </div>
         </div>
 
-        {/* Selected Day Details Panel */}
-        <div className="lg:col-span-5 bg-slate-50 rounded-2xl md:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between min-h-[220px] sm:min-h-[300px]" id="calendar-details-panel">
-          <div>
-            <h4 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 sm:mb-3">
-              {selectedDay ? `Due on ${getPaymentCalendarDate(selectedDay.getDate(), selectedMonth).readable}` : 'Select a calendar day'}
-            </h4>
-
-            {!selectedDay ? (
-              <div className="text-center py-8 sm:py-12 text-slate-400" id="empty-day-selection">
-                <p className="text-xs">Tap any date on the calendar to view or settle bills due on that date.</p>
-              </div>
-            ) : selectedDayCommitments.length === 0 ? (
-              <div className="text-center py-8 sm:py-12 text-slate-400" id="empty-commitments-for-day">
-                <p className="text-xs">No commitments scheduled on {getPaymentCalendarDate(selectedDay.getDate(), selectedMonth).readable}.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 sm:space-y-3" id="calendar-day-commitments-list">
-                {selectedDayCommitments.map((commitment) => {
-                  const payment = payments[commitment.id];
-                  const isPaid = payment?.status === 'paid';
-
-                  return (
-                    <div 
-                      key={commitment.id}
-                      className="bg-white p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2.5 sm:gap-3 hover:border-slate-300 transition-all"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-bold text-xs text-slate-800 truncate">{commitment.name}</p>
-                        <p className="text-[9px] sm:text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">{commitment.category}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5 font-semibold">{formatCurrency(commitment.amount)} / month</p>
-                      </div>
-
-                      <button
-                        onClick={() => onTogglePayment(commitment.id)}
-                        className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                          isPaid 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' 
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-600/10'
-                        }`}
-                        id={`calendar-quick-pay-${commitment.id}`}
-                      >
-                        {isPaid ? (
-                          <>
-                            <Check size={10} strokeWidth={3} /> Paid
-                          </>
-                        ) : (
-                          <>
-                            <Clock size={10} /> Pay Bill
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Selected Day Inspector Inset Card */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 sm:p-5 flex flex-col" id="calendar-day-inspector">
+          <div className="flex items-center justify-between border-b border-[#E5E5EA] pb-3 mb-3">
+            <h3 className="text-sm font-bold text-[#1C1C1E] flex items-center gap-2">
+              <CalendarIcon size={16} className="text-[#007AFF]" />
+              <span>
+                {selectedDay 
+                  ? selectedDay.toLocaleDateString('default', { month: 'short', day: 'numeric', weekday: 'short' })
+                  : 'Select a Date'}
+              </span>
+            </h3>
+            {selectedDay && (
+              <span className="text-xs font-semibold text-[#8E8E93]">
+                {selectedDayCommitments.length} item{selectedDayCommitments.length === 1 ? '' : 's'}
+              </span>
             )}
           </div>
 
-          {selectedDay && selectedDayCommitments.length > 0 && (
-            <div className="mt-3 pt-2.5 border-t border-slate-200 text-[9px] sm:text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-              <AlertCircle size={11} className="shrink-0" />
-              <span>Payments toggled here immediately update monthly progress.</span>
+          {!selectedDay ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-8 text-[#8E8E93]">
+              <CalendarIcon size={28} strokeWidth={1.5} className="mb-2 opacity-50" />
+              <p className="text-xs font-medium">Tap any date on the calendar to inspect due bills.</p>
+            </div>
+          ) : selectedDayCommitments.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-8 text-[#8E8E93]">
+              <p className="text-xs font-medium">No payments due on this date.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[300px] pr-1">
+              {selectedDayCommitments.map(c => {
+                const isPaid = payments[c.id]?.status === 'paid';
+                return (
+                  <div 
+                    key={c.id}
+                    className="p-3 bg-[#F2F2F7] rounded-xl flex items-center justify-between gap-3 border border-[#E5E5EA]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <h5 className={`text-xs font-bold truncate ${isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'}`}>
+                        {c.name}
+                      </h5>
+                      <p className="text-[10px] text-[#8E8E93] mt-0.5">
+                        {c.category} • {c.user || 'Both'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-xs font-bold tabular-nums ${isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'}`}>
+                        {formatCurrency(c.amount)}
+                      </span>
+                      <button
+                        onClick={() => onTogglePayment(c.id)}
+                        className={`w-6 h-6 rounded-full border flex items-center justify-center cursor-pointer transition-all ${
+                          isPaid 
+                            ? 'bg-[#34C759] border-[#34C759] text-white' 
+                            : 'border-[#C7C7CC] bg-white hover:border-[#007AFF]'
+                        }`}
+                      >
+                        {isPaid && <Check size={12} strokeWidth={3} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

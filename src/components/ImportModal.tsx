@@ -211,7 +211,7 @@ export default function ImportModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-2.5 sm:p-4 animate-fade-in" id="import-excel-modal">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" id="import-excel-modal">
       {/* Hidden universal file input */}
       <input 
         ref={fileInputRef}
@@ -222,42 +222,48 @@ export default function ImportModal({
         id="universal-excel-input"
       />
 
-      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[94vh]">
+      <div className="bg-white rounded-t-[28px] sm:rounded-[26px] max-w-4xl w-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-black/[0.06] overflow-hidden flex flex-col max-h-[92vh] animate-ios-sheet">
+        
+        {/* iOS Grabber */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
+          <div className="w-10 h-1.5 bg-[#D1D1D6] rounded-full" />
+        </div>
+
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="p-2 sm:p-2.5 bg-emerald-100 text-emerald-700 rounded-xl sm:rounded-2xl shrink-0">
-              <FileSpreadsheet size={20} className="sm:w-[22px] sm:h-[22px]" />
+        <div className="px-4 sm:px-6 py-3.5 border-b border-[#E5E5EA] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#34C759]/10 text-[#34C759] flex items-center justify-center shrink-0">
+              <FileSpreadsheet size={18} strokeWidth={2.2} />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-800 font-sans tracking-tight">Import Excel / CSV</h3>
-              <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">Upload, verify person assignments, and manage records</p>
+              <h3 className="text-base font-bold text-[#1C1C1E] tracking-tight">Import Spreadsheet</h3>
+              <p className="text-[11px] text-[#8E8E93]">Excel (.xlsx) or CSV import with auto-mapping</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={downloadSampleExcelTemplate}
-              className="px-2.5 sm:px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              className="px-2.5 py-1 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#007AFF] rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
               id="download-template-btn"
-              title="Download pre-formatted sample Excel file"
+              title="Download template"
             >
-              <Download size={12} className="text-indigo-600" />
-              <span className="hidden xs:inline">Sample</span> Template
+              <Download size={13} />
+              <span>Template</span>
             </button>
             <button 
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/50 transition-colors cursor-pointer"
+              className="text-sm font-normal text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer px-1"
               id="close-import-modal-btn"
             >
-              <X size={18} />
+              Done
             </button>
           </div>
         </div>
 
         {/* Content Body */}
-        <div className="p-3.5 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-5 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 bg-[#F2F2F7]">
           
           {/* Clear Success Alert */}
           {clearSuccess && (

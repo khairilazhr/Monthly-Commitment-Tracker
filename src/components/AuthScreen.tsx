@@ -28,26 +28,43 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      localStorage.removeItem('is_local_mode');
+      localStorage.removeItem('local_user');
       onAuthSuccess();
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/invalid-credential') {
-        setError('Incorrect email or password.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('This email is already in use. Please sign in instead.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password must be at least 6 characters.');
-      } else if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
-        console.warn('Email Auth is not enabled in Firebase. Transitioning to local sandbox mode.');
-        localStorage.setItem('is_local_mode', 'true');
-        localStorage.setItem('local_user', JSON.stringify({ uid: 'local_guest', email: email || 'user@apple.com', isAnonymous: false }));
-        onAuthSuccess();
+      console.error("Firebase Auth error:", err);
+      const code = err.code || '';
+
+      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+        setError(isSignUp ? 'Unable to create account with these credentials.' : 'Incorrect email or password. If you haven’t registered yet, tap "Create Account".');
+      } else if (code === 'auth/email-already-in-use') {
+        setError('This email is already registered. Please tap "Sign In" instead.');
+      } else if (code === 'auth/weak-password') {
+        setError('Password is too weak. Please use at least 6 characters.');
+      } else if (code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else if (code === 'auth/operation-not-allowed') {
+        setError('Email/Password provider is not enabled in Firebase. Please enable Email/Password in Firebase Console → Authentication → Sign-in method.');
+      } else if (code === 'auth/invalid-api-key' || code === 'auth/api-key-not-valid') {
+        setError('Invalid Firebase API key. Please check your VITE_FIREBASE_API_KEY environment variable.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Network connection error. Please check your internet connection and try again.');
       } else {
-        setError(err.message || 'Authentication failed. Please try again.');
+        setError(err.message || 'Authentication failed. Please check your credentials.');
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGuestMode = () => {
+    localStorage.setItem('is_local_mode', 'true');
+    localStorage.setItem('local_user', JSON.stringify({ 
+      uid: 'local_guest', 
+      email: 'guest@offline.local', 
+      isAnonymous: true 
+    }));
+    onAuthSuccess();
   };
 
   return (
@@ -171,6 +188,23 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-[#E5E5EA]"></div>
+            <span className="flex-shrink mx-3 text-[11px] text-[#8E8E93] font-medium">or</span>
+            <div className="flex-grow border-t border-[#E5E5EA]"></div>
+          </div>
+
+          {/* Guest / Offline Mode Option */}
+          <button
+            type="button"
+            onClick={handleGuestMode}
+            className="w-full py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] active:scale-[0.98] text-[#1C1C1E] rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 border border-[#E5E5EA]"
+            id="auth-guest-btn"
+          >
+            <span>Continue as Guest (Offline Mode)</span>
+          </button>
         </div>
       </div>
 

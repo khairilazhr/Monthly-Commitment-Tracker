@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword 
 } from 'firebase/auth';
 import { CreditCard, Mail, Lock, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { InstallPwaPrompt } from './InstallPwaPrompt';
 
 interface AuthScreenProps {
   onAuthSuccess: () => void;
@@ -218,6 +219,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           Crafted by <span className="font-semibold text-[#8E8E93]">Kai</span>
         </p>
       </div>
+
+      <InstallPwaPrompt />
     </div>
   );
 }

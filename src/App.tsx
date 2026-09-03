@@ -25,6 +25,7 @@ import ImportModal, { ImportedCommitmentItem } from './components/ImportModal';
 import ProjectionChart from './components/ProjectionChart';
 import CalendarView from './components/CalendarView';
 import CommitmentDetailModal from './components/CommitmentDetailModal';
+import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 import { 
   Landmark, 
   Calendar as CalendarIcon, 
@@ -893,6 +894,9 @@ export default function App() {
         defaultMonth={selectedMonth}
         existingCount={commitments.length}
       />
+
+      {/* In-App PWA Install Banner */}
+      <InstallPwaPrompt />
 
     </div>
   );

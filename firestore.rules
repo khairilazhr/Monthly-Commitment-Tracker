@@ -7,23 +7,20 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Check if user is the document owner
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     // Commitments collection: strictly isolated to the authenticated owner
     match /commitments/{commitmentId} {
-      allow read, delete: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId) && isOwner(request.resource.data.userId);
+      allow read: if isSignedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.get('userId', '') == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.get('userId', '') == request.auth.uid && (resource == null || resource.data.get('userId', '') == request.auth.uid);
+      allow delete: if isSignedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid);
     }
 
     // Payments collection: strictly isolated to the authenticated owner
     match /payments/{paymentId} {
-      allow read, delete: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId) && isOwner(request.resource.data.userId);
+      allow read: if isSignedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.get('userId', '') == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.get('userId', '') == request.auth.uid && (resource == null || resource.data.get('userId', '') == request.auth.uid);
+      allow delete: if isSignedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid);
     }
   }
 }

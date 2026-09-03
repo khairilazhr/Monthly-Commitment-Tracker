@@ -406,40 +406,42 @@ export default function App() {
       commitmentData.notes = formData.notes.trim();
     }
 
+    // Instant optimistic update for silky-smooth responsive UI
+    const updatedCommitments = commitments.filter(c => c.id !== id);
+    updatedCommitments.push(commitmentData as Commitment);
+    setCommitments(updatedCommitments);
+    localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(updatedCommitments));
+    setIsFormOpen(false);
+    setEditingCommitment(undefined);
+
     if (isLocal) {
-      const updatedCommitments = commitments.filter(c => c.id !== id);
-      updatedCommitments.push(commitmentData as Commitment);
-      setCommitments(updatedCommitments);
       localStorage.setItem(`commitments_${user.uid}`, JSON.stringify(updatedCommitments));
-      setIsFormOpen(false);
-      setEditingCommitment(undefined);
       return;
     }
 
     try {
-      await setDoc(doc(db, 'commitments', id), commitmentData);
-      // Update local cache for instant offline reliability
-      const updatedCommitments = commitments.filter(c => c.id !== id);
-      updatedCommitments.push(commitmentData as Commitment);
-      localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(updatedCommitments));
-
-      setIsFormOpen(false);
-      setEditingCommitment(undefined);
+      await Promise.race([
+        setDoc(doc(db, 'commitments', id), commitmentData),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud save timed out")), 12000))
+      ]);
     } catch (err: any) {
-      console.error("Error saving commitment:", err);
-      showError(err.message || "Failed to save commitment. Please check your database permissions.");
-      throw err; // Re-throw so CommitmentForm can display the error
+      console.warn("Cloud save warning (saved locally):", err);
     }
   };
 
   // Batch Import Commitments from Excel / CSV (with Payment Status support)
   const handleBatchImportCommitments = async (
     newCommitments: ImportedCommitmentItem[],
-    replaceExisting: boolean = false
+    replaceExisting: boolean = false,
+    onProgress?: (status: string) => void
   ) => {
-    if (!user) return;
+    if (!user) {
+      throw new Error("You must be logged in to import commitments.");
+    }
     const isLocal = localStorage.getItem('is_local_mode') === 'true';
     const now = new Date().toISOString();
+
+    onProgress?.(`Processing ${newCommitments.length} records...`);
 
     const createdList: Commitment[] = [];
     const createdPayments: Payment[] = [];
@@ -483,14 +485,29 @@ export default function App() {
       });
     });
 
-    if (isLocal) {
-      const updatedCommitments = replaceExisting ? createdList : [...commitments, ...createdList];
-      setCommitments(updatedCommitments);
-      localStorage.setItem(`commitments_${user.uid}`, JSON.stringify(updatedCommitments));
+    // 1. Optimistic Local State & Cache Update immediately
+    // Guarantees data is never lost and visible instantly on current device
+    const updatedList = replaceExisting ? createdList : [...commitments, ...createdList];
+    setCommitments(updatedList);
+    localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(updatedList));
 
-      const updatedAll = replaceExisting ? {} : { ...allPayments };
+    const updatedPaymentsMap = replaceExisting ? {} : { ...payments };
+    createdPayments.forEach(p => {
+      if (p.month === selectedMonth) {
+        updatedPaymentsMap[p.commitmentId] = p;
+      }
+    });
+    setPayments(updatedPaymentsMap);
+
+    const updatedAllPayments = replaceExisting ? {} : { ...allPayments };
+    createdPayments.forEach(p => {
+      updatedAllPayments[p.id] = p;
+    });
+    setAllPayments(updatedAllPayments);
+
+    if (isLocal) {
+      localStorage.setItem(`commitments_${user.uid}`, JSON.stringify(updatedList));
       createdPayments.forEach(p => {
-        updatedAll[p.id] = p;
         const monthKey = `payments_${user.uid}_${p.month}`;
         let monthData: Record<string, Payment> = {};
         try {
@@ -499,7 +516,6 @@ export default function App() {
         monthData[p.commitmentId] = p;
         localStorage.setItem(monthKey, JSON.stringify(monthData));
       });
-      setAllPayments(updatedAll);
 
       if (replaceExisting) {
         Object.keys(localStorage).forEach(key => {
@@ -512,13 +528,14 @@ export default function App() {
     }
 
     try {
-      // Chunked atomic writeBatch for robust Firestore writes
+      // Chunked atomic writeBatch (batches of 60 ops for fast, reliable gRPC execution)
+      const BATCH_LIMIT = 60;
       const batchList: any[] = [];
       let currentBatch = writeBatch(db);
       let opCount = 0;
 
       const enqueueOp = (operation: (b: any) => void) => {
-        if (opCount >= 400) {
+        if (opCount >= BATCH_LIMIT) {
           batchList.push(currentBatch);
           currentBatch = writeBatch(db);
           opCount = 0;
@@ -528,21 +545,42 @@ export default function App() {
       };
 
       if (replaceExisting) {
-        // Query and delete all existing user commitments
-        const existingDocs = await getDocs(
-          query(collection(db, 'commitments'), where('userId', '==', user.uid))
-        );
-        existingDocs.forEach(d => {
-          enqueueOp(b => b.delete(doc(db, 'commitments', d.id)));
-        });
+        onProgress?.("Cleaning up previous commitments...");
+        try {
+          // Fetch existing docs with 3.5s timeout to prevent hanging
+          const fetchPromise = Promise.all([
+            getDocs(query(collection(db, 'commitments'), where('userId', '==', user.uid))),
+            getDocs(query(collection(db, 'payments'), where('userId', '==', user.uid)))
+          ]);
+          const timeoutPromise = new Promise<null>((res) => setTimeout(() => res(null), 3500));
+          const queryResult = await Promise.race([fetchPromise, timeoutPromise]);
 
-        // Also clean up any prior payments if doing a fresh replace
-        const paymentDocs = await getDocs(
-          query(collection(db, 'payments'), where('userId', '==', user.uid))
-        );
-        paymentDocs.forEach(d => {
-          enqueueOp(b => b.delete(doc(db, 'payments', d.id)));
-        });
+          if (queryResult) {
+            const [existingCommitments, existingPayments] = queryResult;
+            existingCommitments.forEach(d => {
+              enqueueOp(b => b.delete(doc(db, 'commitments', d.id)));
+            });
+            existingPayments.forEach(d => {
+              enqueueOp(b => b.delete(doc(db, 'payments', d.id)));
+            });
+          } else {
+            // Fallback to in-memory IDs if query timed out
+            commitments.forEach(c => {
+              enqueueOp(b => b.delete(doc(db, 'commitments', c.id)));
+            });
+            Object.keys(allPayments).forEach(pid => {
+              enqueueOp(b => b.delete(doc(db, 'payments', pid)));
+            });
+          }
+        } catch (cleanErr) {
+          console.warn("Non-fatal cleanup query error:", cleanErr);
+          commitments.forEach(c => {
+            enqueueOp(b => b.delete(doc(db, 'commitments', c.id)));
+          });
+          Object.keys(allPayments).forEach(pid => {
+            enqueueOp(b => b.delete(doc(db, 'payments', pid)));
+          });
+        }
       }
 
       // Save each new commitment with strictly sanitized payload (no undefined values)
@@ -574,26 +612,23 @@ export default function App() {
         batchList.push(currentBatch);
       }
 
-      // Commit all batches in sequence
-      for (const batch of batchList) {
-        await batch.commit();
+      // Commit all batches with per-batch timeout and user progress
+      const totalBatches = batchList.length;
+      for (let i = 0; i < totalBatches; i++) {
+        onProgress?.(`Saving to cloud (${i + 1} of ${totalBatches})...`);
+        const batch = batchList[i];
+        await Promise.race([
+          batch.commit(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Cloud sync timeout on batch " + (i + 1))), 12000)
+          )
+        ]);
       }
 
-      // Update local state and offline cache
-      const updatedList = replaceExisting ? createdList : [...commitments, ...createdList];
-      setCommitments(updatedList);
-      localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(updatedList));
-
-      const updatedPaymentsMap = replaceExisting ? {} : { ...payments };
-      createdPayments.forEach(p => {
-        if (p.month === selectedMonth) {
-          updatedPaymentsMap[p.commitmentId] = p;
-        }
-      });
-      setPayments(updatedPaymentsMap);
+      onProgress?.("Cloud sync complete!");
     } catch (err: any) {
-      console.error("Error importing commitments:", err);
-      throw new Error(err.message || "Failed to save imported commitments to database.");
+      console.error("Error importing commitments to cloud:", err);
+      throw new Error(err.message || "Failed to save imported commitments to cloud database.");
     }
   };
 

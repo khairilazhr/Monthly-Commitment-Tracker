@@ -21,7 +21,8 @@ import {
   Sparkles,
   Info,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
 export interface ImportedCommitmentItem extends Omit<Commitment, 'id' | 'userId' | 'createdAt'> {
@@ -38,7 +39,8 @@ interface ImportModalProps {
   onClose: () => void;
   onImport: (
     newCommitments: ImportedCommitmentItem[],
-    replaceExisting?: boolean
+    replaceExisting?: boolean,
+    onProgress?: (status: string) => void
   ) => Promise<void>;
   onClearAllData?: () => Promise<void> | void;
   defaultMonth: string;
@@ -58,6 +60,7 @@ export default function ImportModal({
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [importProgress, setImportProgress] = useState<string>('');
   const [importMode, setImportMode] = useState<'replace' | 'append'>('replace');
 
   // Clear data state
@@ -214,6 +217,7 @@ export default function ImportModal({
 
     setIsProcessing(true);
     setError(null);
+    setImportProgress(`Preparing ${selectedItems.length} records...`);
 
     try {
       const commitmentsToSave: ImportedCommitmentItem[] = selectedItems.map(item => ({
@@ -233,19 +237,33 @@ export default function ImportModal({
         detectedPaidDatesStr: item.detectedPaidDatesStr,
       }));
 
-      await onImport(commitmentsToSave, importMode === 'replace');
+      // Safety timeout promise of 30 seconds
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Import operation timed out. Please check your network connection and try again.")), 30000)
+      );
+
+      await Promise.race([
+        onImport(commitmentsToSave, importMode === 'replace', (statusMsg) => {
+          setImportProgress(statusMsg);
+        }),
+        timeoutPromise
+      ]);
+
       setIsSuccess(true);
+      setImportProgress("Successfully imported!");
       setTimeout(() => {
         setIsProcessing(false);
         setIsSuccess(false);
         setFile(null);
         setItems([]);
+        setImportProgress('');
         onClose();
       }, 1000);
     } catch (err: any) {
       console.error("Error during import execution:", err);
       setError(err.message || "Failed to import commitments into database.");
       setIsProcessing(false);
+      setImportProgress('');
     }
   };
 
@@ -801,11 +819,18 @@ export default function ImportModal({
         </div>
 
         {/* Footer Actions */}
+        {error && (
+          <div className="px-6 py-2.5 bg-rose-50 border-t border-rose-200 flex items-center gap-2 text-xs text-rose-700 font-semibold">
+            <AlertTriangle size={15} className="text-rose-500 shrink-0" />
+            <span className="truncate">{error}</span>
+          </div>
+        )}
         <div className="px-6 py-4 border-t border-[#E5E5EA] bg-white flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[#1C1C1E] rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            disabled={isProcessing}
+            className="px-4 py-2.5 border border-[#E5E5EA] hover:bg-[#F2F2F7] disabled:opacity-50 disabled:cursor-not-allowed text-[#1C1C1E] rounded-xl text-xs font-bold transition-colors cursor-pointer"
             id="cancel-import-btn"
           >
             Cancel
@@ -829,7 +854,9 @@ export default function ImportModal({
                 <Check size={16} /> Successfully Imported!
               </>
             ) : isProcessing ? (
-              <>Importing {selectedItems.length} records...</>
+              <>
+                <Loader2 size={16} className="animate-spin" /> {importProgress || `Importing ${selectedItems.length} records...`}
+              </>
             ) : (
               <>
                 <CheckCircle2 size={16} /> Confirm & Import {selectedItems.length} Commitment{selectedItems.length > 1 ? 's' : ''} ({countPaid} Paid)

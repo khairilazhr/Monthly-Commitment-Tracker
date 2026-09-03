@@ -1,11 +1,12 @@
 import { Commitment, Payment, CATEGORY_COLORS, isCommitmentActive, formatMonthReadable, monthToVal, getPaymentCalendarDate } from '../types';
 import { exportCommitmentsToExcel, exportCommitmentsToCSV } from '../utils/excelImportExport';
-import { Check, Clock, Calendar, Edit3, Trash2, Tag, AlertCircle, Plus, ChevronDown, ChevronUp, Download, Upload, FileSpreadsheet, Search, X } from 'lucide-react';
+import { Check, Clock, Calendar, Edit3, Trash2, Tag, AlertCircle, Plus, ChevronDown, ChevronUp, Download, Upload, FileSpreadsheet, Search, X, CalendarDays, Eye } from 'lucide-react';
 import { useState } from 'react';
 
 interface CommitmentListProps {
   commitments: Commitment[];
   payments: Record<string, Payment>;
+  allPayments?: Record<string, Payment>;
   selectedMonth: string;
   onTogglePayment: (commitmentId: string) => void;
   onEdit: (commitment: Commitment) => void;
@@ -14,11 +15,13 @@ interface CommitmentListProps {
   userFilter: string;
   onUserFilterChange: (filter: string) => void;
   onImportClick: () => void;
+  onViewDetails?: (commitment: Commitment) => void;
 }
 
 export default function CommitmentList({
   commitments,
   payments,
+  allPayments,
   selectedMonth,
   onTogglePayment,
   onEdit,
@@ -27,6 +30,7 @@ export default function CommitmentList({
   userFilter,
   onUserFilterChange,
   onImportClick,
+  onViewDetails,
 }: CommitmentListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
@@ -55,13 +59,13 @@ export default function CommitmentList({
 
   const handleExportXLSX = (allData: boolean = false) => {
     const listToExport = allData ? commitments : activeCommitments;
-    exportCommitmentsToExcel(listToExport, selectedMonth, allData ? 'All_Database' : userFilter, payments);
+    exportCommitmentsToExcel(listToExport, selectedMonth, allData ? 'All_Database' : userFilter, payments, allPayments);
     setIsExportMenuOpen(false);
   };
 
   const handleExportCSV = (allData: boolean = false) => {
     const listToExport = allData ? commitments : activeCommitments;
-    exportCommitmentsToCSV(listToExport, selectedMonth, allData ? 'All_Database' : userFilter, payments);
+    exportCommitmentsToCSV(listToExport, selectedMonth, allData ? 'All_Database' : userFilter, payments, allPayments);
     setIsExportMenuOpen(false);
   };
 
@@ -370,10 +374,12 @@ export default function CommitmentList({
             return (
               <div 
                 key={commitment.id}
-                className={`transition-colors duration-150 ${
-                  isPaid ? 'bg-[#F2F2F7]/40 hover:bg-[#F2F2F7]/70' : 'hover:bg-[#F2F2F7]/40'
+                onClick={() => onViewDetails?.(commitment)}
+                className={`transition-colors duration-150 cursor-pointer group ${
+                  isPaid ? 'bg-[#F2F2F7]/40 hover:bg-[#F2F2F7]/80' : 'hover:bg-[#F2F2F7]/60'
                 }`}
                 id={`commitment-card-${commitment.id}`}
+                title="Click to view installment schedule and paid dates"
               >
                 <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   
@@ -382,7 +388,11 @@ export default function CommitmentList({
                     
                     {/* iOS Reminders Checkmark Button */}
                     <button
-                      onClick={() => onTogglePayment(commitment.id)}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTogglePayment(commitment.id);
+                      }}
                       className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90 ${
                         isPaid 
                           ? 'bg-[#34C759] border-[#34C759] text-white shadow-2xs' 
@@ -397,14 +407,14 @@ export default function CommitmentList({
                     </button>
 
                     {/* iOS App Squircle Badge */}
-                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-[10px] flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs ${iconBg}`}>
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-[10px] flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${iconBg}`}>
                       {initial}
                     </div>
 
                     {/* Info */}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`text-sm font-semibold tracking-tight truncate max-w-[200px] sm:max-w-none ${
+                        <span className={`text-sm font-semibold tracking-tight truncate max-w-[200px] sm:max-w-none group-hover:text-[#007AFF] transition-colors ${
                           isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'
                         }`}>
                           {commitment.name}
@@ -439,6 +449,9 @@ export default function CommitmentList({
                         <span>Due {getPaymentCalendarDate(commitment.dueDay, selectedMonth).readable}</span>
                         <span>•</span>
                         <span>{getInstallmentInfo(commitment)}</span>
+                        <span className="text-[#007AFF] text-[10px] font-medium hidden sm:inline opacity-0 group-hover:opacity-100 transition-opacity">
+                          • View schedule →
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -455,9 +468,27 @@ export default function CommitmentList({
 
                     {/* iOS Action Buttons */}
                     <div className="flex items-center gap-1">
+                      {/* View Schedule & Detail Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDetails?.(commitment);
+                        }}
+                        className="p-1.5 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-lg transition-colors cursor-pointer"
+                        id={`view-detail-btn-${commitment.id}`}
+                        title="View Installment Schedule & Details"
+                      >
+                        <CalendarDays size={15} />
+                      </button>
+
                       {commitment.notes && (
                         <button
-                          onClick={() => toggleNotes(commitment.id)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleNotes(commitment.id);
+                          }}
                           className="p-1.5 text-[#8E8E93] hover:text-[#1C1C1E] hover:bg-black/5 rounded-lg transition-colors cursor-pointer"
                           title="Notes"
                         >
@@ -465,7 +496,11 @@ export default function CommitmentList({
                         </button>
                       )}
                       <button
-                        onClick={() => onEdit(commitment)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(commitment);
+                        }}
                         className="p-1.5 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-lg transition-colors cursor-pointer"
                         id={`edit-commitment-btn-${commitment.id}`}
                         title="Edit"
@@ -473,7 +508,11 @@ export default function CommitmentList({
                         <Edit3 size={15} />
                       </button>
                       <button
-                        onClick={() => onDelete(commitment.id)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(commitment.id);
+                        }}
                         className="p-1.5 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-lg transition-colors cursor-pointer"
                         id={`delete-commitment-btn-${commitment.id}`}
                         title="Delete"

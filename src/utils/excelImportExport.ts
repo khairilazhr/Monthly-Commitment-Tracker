@@ -1,12 +1,23 @@
 import * as XLSX from 'xlsx';
-import { Commitment, CATEGORIES, Payment } from '../types';
+import { Commitment, CATEGORIES, Payment, monthToVal, valToMonth, getPaymentCalendarDate } from '../types';
 
 export interface ParsedCommitmentItem extends Omit<Commitment, 'id' | 'userId' | 'createdAt'> {
   tempId: string;
   selected: boolean;
+  isPaid?: boolean;
+  paidAt?: string;
+  detectedPaymentStatusRaw?: string;
   detectedPersonRaw?: string;
   detectedDurationRaw?: string;
   detectedStartRaw?: string;
+  // Multi-installment detection
+  detectedPaidMonths?: string[];
+  detectedPaidCount?: number;
+  detectedLeftCount?: number | 'Ongoing';
+  detectedPaidDatesStr?: string;
+  detectedInstallmentsPaidRaw?: string;
+  detectedInstallmentsLeftRaw?: string;
+  detectedDatesAlreadyPaidRaw?: string;
 }
 
 // ----------------------------------------------------
@@ -17,13 +28,70 @@ export function exportCommitmentsToExcel(
   commitments: Commitment[],
   selectedMonth: string,
   userFilter: string,
-  payments?: Record<string, Payment>
+  payments?: Record<string, Payment>,
+  allPayments?: Record<string, Payment>
 ) {
   const data = commitments.map(c => {
     const payment = payments ? payments[c.id] : undefined;
-    const isPaid = payment?.status === 'paid';
-    const paymentStatus = isPaid ? 'Paid' : 'Pending';
-    const paidDate = isPaid && payment?.paidAt ? new Date(payment.paidAt).toLocaleDateString() : '';
+    const isPaidThisMonth = payment?.status === 'paid';
+    const paymentStatusThisMonth = isPaidThisMonth ? 'Paid' : 'Pending';
+    const markedPaidText = isPaidThisMonth ? 'Yes' : 'No';
+    const paidDateThisMonth = isPaidThisMonth && payment?.paidAt ? new Date(payment.paidAt).toLocaleDateString() : '';
+
+    // Calculate installment schedule metrics using allPayments
+    const startCalVal = monthToVal(c.startMonth);
+    const startBudgetVal = c.dueDay < 25 ? startCalVal - 1 : startCalVal;
+    const isOngoing = c.durationMonths === 999;
+
+    const paidDatesList: string[] = [];
+    let nextDueDateStr = '';
+
+    if (isOngoing) {
+      if (allPayments) {
+        const sortedPaid = Object.values(allPayments)
+          .filter(p => p.commitmentId === c.id && p.status === 'paid')
+          .sort((a, b) => a.month.localeCompare(b.month));
+        
+        sortedPaid.forEach(p => {
+          const payCal = getPaymentCalendarDate(c.dueDay, p.month);
+          paidDatesList.push(`${payCal.monthStr}-${String(c.dueDay).padStart(2, '0')}`);
+        });
+      }
+
+      // Next due date from today
+      const today = new Date();
+      const currentCalVal = today.getFullYear() * 12 + today.getMonth();
+      const curBudgetVal = c.dueDay < 25 ? currentCalVal - 1 : currentCalVal;
+      for (let offset = 0; offset < 24; offset++) {
+        const checkBMonth = valToMonth(curBudgetVal + offset);
+        const pKey = `${c.id}_${checkBMonth}`;
+        if (!allPayments?.[pKey] || allPayments[pKey].status !== 'paid') {
+          const payCal = getPaymentCalendarDate(c.dueDay, checkBMonth);
+          nextDueDateStr = `${payCal.monthStr}-${String(c.dueDay).padStart(2, '0')}`;
+          break;
+        }
+      }
+    } else {
+      // Fixed tenure
+      for (let i = 0; i < c.durationMonths; i++) {
+        const bMonth = valToMonth(startBudgetVal + i);
+        const payCal = getPaymentCalendarDate(c.dueDay, bMonth);
+        const dateStr = `${payCal.monthStr}-${String(c.dueDay).padStart(2, '0')}`;
+        const pKey = `${c.id}_${bMonth}`;
+        const paidDoc = allPayments?.[pKey] || (bMonth === selectedMonth ? payment : undefined);
+        if (paidDoc && paidDoc.status === 'paid') {
+          paidDatesList.push(dateStr);
+        } else if (!nextDueDateStr) {
+          nextDueDateStr = dateStr;
+        }
+      }
+    }
+
+    const installmentsPaidCount = paidDatesList.length;
+    const installmentsLeftCount = isOngoing ? 'Ongoing' : Math.max(0, c.durationMonths - installmentsPaidCount);
+    const totalPaidAmount = installmentsPaidCount * c.amount;
+    const remainingBalanceAmount = isOngoing ? 'Ongoing' : (typeof installmentsLeftCount === 'number' ? installmentsLeftCount * c.amount : 0);
+    const datesAlreadyPaidStr = paidDatesList.join(', ');
 
     return {
       'Bill Name': c.name,
@@ -31,11 +99,18 @@ export function exportCommitmentsToExcel(
       'Amount (RM)': c.amount,
       'Due Day': c.dueDay,
       'Start Month': c.startMonth,
-      'Duration (Months)': c.durationMonths === 999 ? 'Ongoing' : c.durationMonths,
+      'Duration (Months)': isOngoing ? 'Ongoing' : c.durationMonths,
+      'Installments Paid': installmentsPaidCount,
+      'Installments Left': installmentsLeftCount,
+      'Total Paid (RM)': totalPaidAmount,
+      'Remaining Balance (RM)': remainingBalanceAmount,
+      'Dates Already Paid': datesAlreadyPaidStr,
+      'Next Due Date': nextDueDateStr,
       'Responsible Person': c.user || 'Person A',
-      'Notes': c.notes || '',
-      'Payment Status': paymentStatus,
-      'Payment Date': paidDate
+      'Payment Status (This Month)': paymentStatusThisMonth,
+      'Marked Paid': markedPaidText,
+      'Payment Date': paidDateThisMonth,
+      'Notes': c.notes || ''
     };
   });
 
@@ -43,16 +118,23 @@ export function exportCommitmentsToExcel(
 
   // Set column widths
   ws['!cols'] = [
-    { wch: 28 }, // Bill Name
-    { wch: 16 }, // Category
+    { wch: 26 }, // Bill Name
+    { wch: 15 }, // Category
     { wch: 14 }, // Amount (RM)
     { wch: 10 }, // Due Day
-    { wch: 14 }, // Start Month
-    { wch: 18 }, // Duration (Months)
-    { wch: 20 }, // Responsible Person
-    { wch: 30 }, // Notes
-    { wch: 16 }, // Payment Status
-    { wch: 14 }  // Payment Date
+    { wch: 13 }, // Start Month
+    { wch: 16 }, // Duration (Months)
+    { wch: 16 }, // Installments Paid
+    { wch: 16 }, // Installments Left
+    { wch: 15 }, // Total Paid (RM)
+    { wch: 20 }, // Remaining Balance (RM)
+    { wch: 35 }, // Dates Already Paid
+    { wch: 15 }, // Next Due Date
+    { wch: 18 }, // Responsible Person
+    { wch: 24 }, // Payment Status (This Month)
+    { wch: 12 }, // Marked Paid
+    { wch: 15 }, // Payment Date
+    { wch: 30 }  // Notes
   ];
 
   const wb = XLSX.utils.book_new();
@@ -66,7 +148,8 @@ export function exportCommitmentsToCSV(
   commitments: Commitment[],
   selectedMonth: string,
   userFilter: string,
-  payments?: Record<string, Payment>
+  payments?: Record<string, Payment>,
+  allPayments?: Record<string, Payment>
 ) {
   const headers = [
     'Bill Name',
@@ -75,10 +158,17 @@ export function exportCommitmentsToCSV(
     'Due Day',
     'Start Month',
     'Duration (Months)',
+    'Installments Paid',
+    'Installments Left',
+    'Total Paid (RM)',
+    'Remaining Balance (RM)',
+    'Dates Already Paid',
+    'Next Due Date',
     'Responsible Person',
-    'Notes',
-    'Payment Status',
-    'Payment Date'
+    'Payment Status (This Month)',
+    'Marked Paid',
+    'Payment Date',
+    'Notes'
   ];
 
   const escapeCSV = (val: string | number | undefined | null) => {
@@ -92,9 +182,62 @@ export function exportCommitmentsToCSV(
 
   const rows = commitments.map(c => {
     const payment = payments ? payments[c.id] : undefined;
-    const isPaid = payment?.status === 'paid';
-    const paymentStatus = isPaid ? 'Paid' : 'Pending';
-    const paidDate = isPaid && payment?.paidAt ? new Date(payment.paidAt).toLocaleDateString() : '';
+    const isPaidThisMonth = payment?.status === 'paid';
+    const paymentStatusThisMonth = isPaidThisMonth ? 'Paid' : 'Pending';
+    const markedPaidText = isPaidThisMonth ? 'Yes' : 'No';
+    const paidDateThisMonth = isPaidThisMonth && payment?.paidAt ? new Date(payment.paidAt).toLocaleDateString() : '';
+
+    const startCalVal = monthToVal(c.startMonth);
+    const startBudgetVal = c.dueDay < 25 ? startCalVal - 1 : startCalVal;
+    const isOngoing = c.durationMonths === 999;
+
+    const paidDatesList: string[] = [];
+    let nextDueDateStr = '';
+
+    if (isOngoing) {
+      if (allPayments) {
+        const sortedPaid = Object.values(allPayments)
+          .filter(p => p.commitmentId === c.id && p.status === 'paid')
+          .sort((a, b) => a.month.localeCompare(b.month));
+        
+        sortedPaid.forEach(p => {
+          const payCal = getPaymentCalendarDate(c.dueDay, p.month);
+          paidDatesList.push(`${payCal.monthStr}-${String(c.dueDay).padStart(2, '0')}`);
+        });
+      }
+
+      const today = new Date();
+      const currentCalVal = today.getFullYear() * 12 + today.getMonth();
+      const curBudgetVal = c.dueDay < 25 ? currentCalVal - 1 : currentCalVal;
+      for (let offset = 0; offset < 24; offset++) {
+        const checkBMonth = valToMonth(curBudgetVal + offset);
+        const pKey = `${c.id}_${checkBMonth}`;
+        if (!allPayments?.[pKey] || allPayments[pKey].status !== 'paid') {
+          const payCal = getPaymentCalendarDate(c.dueDay, checkBMonth);
+          nextDueDateStr = `${payCal.monthStr}-${String(c.dueDay).padStart(2, '0')}`;
+          break;
+        }
+      }
+    } else {
+      for (let i = 0; i < c.durationMonths; i++) {
+        const bMonth = valToMonth(startBudgetVal + i);
+        const payCal = getPaymentCalendarDate(c.dueDay, bMonth);
+        const dateStr = `${payCal.monthStr}-${String(c.dueDay).padStart(2, '0')}`;
+        const pKey = `${c.id}_${bMonth}`;
+        const paidDoc = allPayments?.[pKey] || (bMonth === selectedMonth ? payment : undefined);
+        if (paidDoc && paidDoc.status === 'paid') {
+          paidDatesList.push(dateStr);
+        } else if (!nextDueDateStr) {
+          nextDueDateStr = dateStr;
+        }
+      }
+    }
+
+    const installmentsPaidCount = paidDatesList.length;
+    const installmentsLeftCount = isOngoing ? 'Ongoing' : Math.max(0, c.durationMonths - installmentsPaidCount);
+    const totalPaidAmount = installmentsPaidCount * c.amount;
+    const remainingBalanceAmount = isOngoing ? 'Ongoing' : (typeof installmentsLeftCount === 'number' ? installmentsLeftCount * c.amount : 0);
+    const datesAlreadyPaidStr = paidDatesList.join(', ');
 
     return [
       escapeCSV(c.name),
@@ -103,10 +246,17 @@ export function exportCommitmentsToCSV(
       c.dueDay,
       escapeCSV(c.startMonth),
       c.durationMonths === 999 ? 'Ongoing' : c.durationMonths,
+      installmentsPaidCount,
+      typeof installmentsLeftCount === 'number' ? installmentsLeftCount : escapeCSV(installmentsLeftCount),
+      totalPaidAmount,
+      typeof remainingBalanceAmount === 'number' ? remainingBalanceAmount : escapeCSV(remainingBalanceAmount),
+      escapeCSV(datesAlreadyPaidStr),
+      escapeCSV(nextDueDateStr),
       escapeCSV(c.user || 'Person A'),
-      escapeCSV(c.notes || ''),
-      escapeCSV(paymentStatus),
-      escapeCSV(paidDate)
+      escapeCSV(paymentStatusThisMonth),
+      escapeCSV(markedPaidText),
+      escapeCSV(paidDateThisMonth),
+      escapeCSV(c.notes || '')
     ];
   });
 
@@ -138,7 +288,16 @@ export function downloadSampleExcelTemplate() {
       'Due Day': 5,
       'Start Month': currentMonth,
       'Duration (Months)': 60,
+      'Installments Paid': 5,
+      'Installments Left': 55,
+      'Total Paid (RM)': 4250.00,
+      'Remaining Balance (RM)': 46750.00,
+      'Dates Already Paid': `${currentMonth}-05`,
+      'Next Due Date': '',
       'Responsible Person': 'Person A',
+      'Payment Status (This Month)': 'Paid',
+      'Marked Paid': 'Yes',
+      'Payment Date': `${currentMonth}-05`,
       'Notes': 'Maybank Auto Loan'
     },
     {
@@ -148,8 +307,36 @@ export function downloadSampleExcelTemplate() {
       'Due Day': 1,
       'Start Month': currentMonth,
       'Duration (Months)': 'Ongoing',
+      'Installments Paid': 1,
+      'Installments Left': 'Ongoing',
+      'Total Paid (RM)': 1400.00,
+      'Remaining Balance (RM)': 'Ongoing',
+      'Dates Already Paid': `${currentMonth}-01`,
+      'Next Due Date': '',
       'Responsible Person': 'Both',
+      'Payment Status (This Month)': 'Paid',
+      'Marked Paid': 'Yes',
+      'Payment Date': `${currentMonth}-01`,
       'Notes': 'Transfer to landlord via DuitNow'
+    },
+    {
+      'Bill Name': 'Shopee SpayLater',
+      'Category': 'Installment',
+      'Amount (RM)': 180.00,
+      'Due Day': 10,
+      'Start Month': currentMonth,
+      'Duration (Months)': 6,
+      'Installments Paid': 2,
+      'Installments Left': 4,
+      'Total Paid (RM)': 360.00,
+      'Remaining Balance (RM)': 720.00,
+      'Dates Already Paid': `${currentMonth}-10`,
+      'Next Due Date': '',
+      'Responsible Person': 'Person B',
+      'Payment Status (This Month)': 'Paid',
+      'Marked Paid': 'Yes',
+      'Payment Date': `${currentMonth}-10`,
+      'Notes': 'Phone purchase installment'
     },
     {
       'Bill Name': 'Netflix Premium',
@@ -158,7 +345,16 @@ export function downloadSampleExcelTemplate() {
       'Due Day': 15,
       'Start Month': currentMonth,
       'Duration (Months)': 'Ongoing',
+      'Installments Paid': 0,
+      'Installments Left': 'Ongoing',
+      'Total Paid (RM)': 0,
+      'Remaining Balance (RM)': 'Ongoing',
+      'Dates Already Paid': '',
+      'Next Due Date': `${currentMonth}-15`,
       'Responsible Person': 'Person B',
+      'Payment Status (This Month)': 'Pending',
+      'Marked Paid': 'No',
+      'Payment Date': '',
       'Notes': 'Family plan split'
     },
     {
@@ -168,25 +364,26 @@ export function downloadSampleExcelTemplate() {
       'Due Day': 20,
       'Start Month': currentMonth,
       'Duration (Months)': 'Ongoing',
+      'Installments Paid': 0,
+      'Installments Left': 'Ongoing',
+      'Total Paid (RM)': 0,
+      'Remaining Balance (RM)': 'Ongoing',
+      'Dates Already Paid': '',
+      'Next Due Date': `${currentMonth}-20`,
       'Responsible Person': 'Person A',
+      'Payment Status (This Month)': 'Pending',
+      'Marked Paid': 'No',
+      'Payment Date': '',
       'Notes': 'Account 2201994821'
-    },
-    {
-      'Bill Name': 'Shopee SpayLater',
-      'Category': 'Installment',
-      'Amount (RM)': 180.00,
-      'Due Day': 10,
-      'Start Month': currentMonth,
-      'Duration (Months)': 6,
-      'Responsible Person': 'Person B',
-      'Notes': 'Phone purchase installment'
     }
   ];
 
   const ws = XLSX.utils.json_to_sheet(sampleData);
   ws['!cols'] = [
     { wch: 25 }, { wch: 15 }, { wch: 14 }, { wch: 10 },
-    { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 30 }
+    { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 16 },
+    { wch: 15 }, { wch: 22 }, { wch: 28 }, { wch: 15 },
+    { wch: 20 }, { wch: 24 }, { wch: 14 }, { wch: 16 }, { wch: 30 }
   ];
 
   const wb = XLSX.utils.book_new();
@@ -237,7 +434,8 @@ export async function parseExcelOrCSVFile(file: File): Promise<Record<string, an
     'category', 'type', 'group', 'class',
     'due', 'day', 'date', 'month', 'start', 'duration', 'tenure',
     'person', 'responsible', 'user', 'owner', 'payer', 'who', 'whose', 'pic', 'party',
-    'orang', 'penama', 'pemilik', 'bayar', 'pihak'
+    'status', 'payment', 'paid', 'marked', 'ticked', 'settled',
+    'orang', 'penama', 'pemilik', 'bayar', 'pihak', 'statusbayaran', 'sudahbayar'
   ];
 
   let headerRowIndex = 0;
@@ -591,8 +789,111 @@ export function normalizeCategory(raw: any): string {
 }
 
 /**
+ * Normalizes payment status and paid date from spreadsheet cells
+ * Detects keywords like "paid", "ticked", "yes", "true", "settled", "sudah bayar", "lunas", "selesai",
+ * checkmarks (✓, ✔, ☑), boolean values, or valid dates in paid date columns.
+ */
+export function normalizePaymentStatus(
+  rawStatus: any,
+  rawPaidDate?: any
+): { isPaid: boolean; paidAt?: string } {
+  let isPaid = false;
+  let paidAt: string | undefined = undefined;
+
+  // 1. Check rawStatus
+  if (rawStatus !== undefined && rawStatus !== null && rawStatus !== '') {
+    if (typeof rawStatus === 'boolean') {
+      isPaid = rawStatus;
+    } else if (typeof rawStatus === 'number') {
+      isPaid = rawStatus === 1;
+    } else {
+      const str = String(rawStatus).trim();
+      const lower = str.toLowerCase();
+      const clean = lower.replace(/[^a-z0-9]/g, '');
+
+      // Explicit negative check
+      if (
+        clean === 'pending' ||
+        clean === 'unpaid' ||
+        clean === 'notpaid' ||
+        clean === 'no' ||
+        clean === 'false' ||
+        clean === '0' ||
+        clean === 'belum' ||
+        clean === 'belumbayar' ||
+        clean === 'tertunggak' ||
+        str === '-' ||
+        str === 'n/a'
+      ) {
+        isPaid = false;
+      } else if (
+        clean === 'paid' ||
+        clean === 'ispaid' ||
+        clean === 'markedpaid' ||
+        clean === 'settled' ||
+        clean === 'settle' ||
+        clean === 'ticked' ||
+        clean === 'tick' ||
+        clean === 'yes' ||
+        clean === 'true' ||
+        clean === 'y' ||
+        clean === '1' ||
+        clean === 'done' ||
+        clean === 'checked' ||
+        clean === 'check' ||
+        clean === 'cleared' ||
+        clean === 'complete' ||
+        clean === 'completed' ||
+        clean === 'sudah' ||
+        clean === 'sudahbayar' ||
+        clean === 'lunas' ||
+        clean === 'selesai' ||
+        clean === 'berjaya' ||
+        lower.includes('paid') ||
+        lower.includes('settle') ||
+        lower.includes('sudah') ||
+        lower.includes('lunas') ||
+        lower.includes('selesai') ||
+        str.includes('✓') ||
+        str.includes('✔') ||
+        str.includes('[x]') ||
+        str.includes('☑')
+      ) {
+        isPaid = true;
+      }
+    }
+  }
+
+  // 2. Check rawPaidDate if provided
+  if (rawPaidDate !== undefined && rawPaidDate !== null && rawPaidDate !== '') {
+    const dateStr = String(rawPaidDate).trim();
+    const lowerDate = dateStr.toLowerCase();
+    if (
+      dateStr !== '-' &&
+      dateStr !== 'N/A' &&
+      lowerDate !== 'pending' &&
+      lowerDate !== 'unpaid' &&
+      lowerDate !== 'no' &&
+      lowerDate !== 'false'
+    ) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        paidAt = d.toISOString();
+        isPaid = true; // If a valid payment date is filled, it is paid
+      }
+    }
+  }
+
+  if (isPaid && !paidAt) {
+    paidAt = new Date().toISOString();
+  }
+
+  return { isPaid, paidAt: isPaid ? paidAt : undefined };
+}
+
+/**
  * Converts parsed raw spreadsheet rows into previewable Commitment items
- * Features multi-layer detection for Person A / Person B / Both
+ * Features multi-layer detection for Person A / Person B / Both and Payment Status (Paid / Pending)
  */
 export function convertRowsToCommitments(
   rows: Record<string, any>[],
@@ -800,7 +1101,151 @@ export function convertRowsToCommitments(
       }
     }
 
-    // 9. Notes
+    // 9. Payment Status & Marked / Ticked Paid Detection
+    const rawPaymentStatus = getValue(
+      'paymentstatus', 'status', 'ispaid', 'paid', 'markedpaid', 'markedaspaid',
+      'ticked', 'paidstatus', 'settled', 'settlement', 'sudahbayar', 'statusbayaran',
+      'bayar', 'lunas', 'selesai', 'payment', 'bayaran', 'pembayaran', 'done', 'tickedpaid',
+      'statusbayar', 'markpaid'
+    );
+
+    const rawPaidDate = getValue(
+      'paymentdate', 'paiddate', 'datepaid', 'paidat', 'tarikhbayar', 'tarikhbayaran', 'tarikhselesai'
+    );
+
+    let { isPaid, paidAt } = normalizePaymentStatus(rawPaymentStatus, rawPaidDate);
+
+    // Fallback: Check if any cell in the row explicitly has checkmark ✓, ✔ or "paid"
+    if (!isPaid && !rawPaymentStatus && !rawPaidDate) {
+      for (const k of keys) {
+        const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (
+          cleanK.includes('status') ||
+          cleanK.includes('paid') ||
+          cleanK.includes('bayar') ||
+          cleanK.includes('tick') ||
+          cleanK.includes('settle')
+        ) {
+          const val = String(row[k] || '').trim();
+          const check = normalizePaymentStatus(val);
+          if (check.isPaid) {
+            isPaid = true;
+            paidAt = check.paidAt;
+            break;
+          }
+        }
+      }
+    }
+
+    // 10. Installment Progress & Dates Already Paid Detection
+    const rawInstallmentsPaid = getValue(
+      'installmentspaid', 'paidinstallments', 'paidcount', 'monthspaid', 'ansurandibayar',
+      'telahbayar', 'terbayar', 'bayaran', 'progress', 'settledinstallments', 'installmentsdone',
+      'noinstpaid', 'numberofpaidinstallments', 'ansuranselesai'
+    );
+
+    const rawInstallmentsLeft = getValue(
+      'installmentsleft', 'remaininginstallments', 'leftcount', 'bakiansuran', 'bakibulan',
+      'unpaidinstallments', 'monthsleft', 'balanceinstallments', 'remainingmonths', 'balanceleft',
+      'left', 'baki'
+    );
+
+    const rawDatesAlreadyPaid = getValue(
+      'datesalreadypaid', 'paiddates', 'tarikhbayar', 'tarikhbayaran', 'datespaid', 'paidmonths',
+      'senaraibayaran', 'paymenthistory', 'tarikhsudahbayar', 'paiddateslist', 'history'
+    );
+
+    const startCalVal = monthToVal(startMonth);
+    const startBudgetVal = dueDay < 25 ? startCalVal - 1 : startCalVal;
+    const detectedBudgetMonths = new Set<string>();
+
+    // A. Parse explicit date list in 'Dates Already Paid'
+    if (rawDatesAlreadyPaid) {
+      const chunks = String(rawDatesAlreadyPaid).split(/[,;\n\r|]+/);
+      for (const chunkRaw of chunks) {
+        const chunk = chunkRaw.trim();
+        if (!chunk || chunk === '-' || chunk.toLowerCase() === 'n/a') continue;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(chunk)) {
+          const [y, m] = chunk.split('-').map(Number);
+          const bVal = dueDay < 25 ? y * 12 + (m - 1) - 1 : y * 12 + (m - 1);
+          detectedBudgetMonths.add(valToMonth(bVal));
+        } else if (/^\d{4}-\d{2}$/.test(chunk)) {
+          const [y, m] = chunk.split('-').map(Number);
+          const bVal = dueDay < 25 ? y * 12 + (m - 1) - 1 : y * 12 + (m - 1);
+          detectedBudgetMonths.add(valToMonth(bVal));
+        } else {
+          const d = new Date(chunk);
+          if (!isNaN(d.getTime())) {
+            const y = d.getFullYear();
+            const m = d.getMonth() + 1;
+            const bVal = dueDay < 25 ? y * 12 + (m - 1) - 1 : y * 12 + (m - 1);
+            detectedBudgetMonths.add(valToMonth(bVal));
+          }
+        }
+      }
+    }
+
+    // B. Parse 'Installments Paid' count or progress (e.g. "5", "5/12", "5 of 12")
+    if (rawInstallmentsPaid) {
+      const str = String(rawInstallmentsPaid).trim().toLowerCase();
+      let paidNum = 0;
+      const fracMatch = str.match(/^(\d+)\s*(?:\/|of|daripada)\s*(\d+)/i);
+      if (fracMatch) {
+        paidNum = parseInt(fracMatch[1], 10);
+      } else {
+        const digitsMatch = str.match(/(\d+)/);
+        if (digitsMatch) {
+          paidNum = parseInt(digitsMatch[1], 10);
+        }
+      }
+      if (!isNaN(paidNum) && paidNum > 0) {
+        const limit = durationMonths === 999 ? paidNum : Math.min(paidNum, durationMonths);
+        for (let k = 0; k < limit; k++) {
+          detectedBudgetMonths.add(valToMonth(startBudgetVal + k));
+        }
+      }
+    }
+
+    // C. Parse 'Installments Left' remaining count (e.g. "7" left on a 12 month plan means 5 paid)
+    if (rawInstallmentsLeft && durationMonths !== 999 && durationMonths > 0) {
+      const strLeft = String(rawInstallmentsLeft).trim().toLowerCase();
+      const leftMatch = strLeft.match(/(\d+)/);
+      if (leftMatch) {
+        const leftNum = parseInt(leftMatch[1], 10);
+        if (!isNaN(leftNum) && leftNum >= 0 && leftNum <= durationMonths) {
+          const derivedPaid = durationMonths - leftNum;
+          if (derivedPaid > 0 && detectedBudgetMonths.size === 0) {
+            for (let k = 0; k < derivedPaid; k++) {
+              detectedBudgetMonths.add(valToMonth(startBudgetVal + k));
+            }
+          }
+        }
+      }
+    }
+
+    // D. If current month was marked as paid via single-month payment status or checkmark, add defaultMonth
+    if (isPaid) {
+      detectedBudgetMonths.add(defaultMonth);
+    }
+
+    const sortedBudgetMonths = Array.from(detectedBudgetMonths).sort();
+    if (sortedBudgetMonths.includes(defaultMonth)) {
+      isPaid = true;
+      if (!paidAt) paidAt = new Date().toISOString();
+    }
+
+    const detectedPaidCount = sortedBudgetMonths.length;
+    const detectedLeftCount = durationMonths === 999 
+      ? 'Ongoing' 
+      : Math.max(0, durationMonths - detectedPaidCount);
+
+    const dateStrings: string[] = sortedBudgetMonths.map(bMonth => {
+      const payCal = getPaymentCalendarDate(dueDay, bMonth);
+      return `${payCal.readable}`;
+    });
+    const detectedPaidDatesStr = dateStrings.join(', ');
+
+    // 11. Notes
     const notes = getValue('notes', 'note', 'remark', 'remarks', 'comments', 'comment', 'details', 'info', 'catatan', 'nota');
 
     return {
@@ -814,9 +1259,19 @@ export function convertRowsToCommitments(
       dueDay,
       notes: notes || undefined,
       user: detectedPerson,
+      isPaid,
+      paidAt,
+      detectedPaymentStatusRaw: rawPaymentStatus || undefined,
       detectedPersonRaw: rawUser || undefined,
       detectedDurationRaw: rawDuration || undefined,
-      detectedStartRaw: rawStartMonth || undefined
+      detectedStartRaw: rawStartMonth || undefined,
+      detectedPaidMonths: sortedBudgetMonths,
+      detectedPaidCount,
+      detectedLeftCount,
+      detectedPaidDatesStr: detectedPaidDatesStr || undefined,
+      detectedInstallmentsPaidRaw: rawInstallmentsPaid || undefined,
+      detectedInstallmentsLeftRaw: rawInstallmentsLeft || undefined,
+      detectedDatesAlreadyPaidRaw: rawDatesAlreadyPaid || undefined
     };
   });
 }

@@ -21,9 +21,10 @@ import AuthScreen from './components/AuthScreen';
 import DashboardStats from './components/DashboardStats';
 import CommitmentList from './components/CommitmentList';
 import CommitmentForm from './components/CommitmentForm';
-import ImportModal from './components/ImportModal';
+import ImportModal, { ImportedCommitmentItem } from './components/ImportModal';
 import ProjectionChart from './components/ProjectionChart';
 import CalendarView from './components/CalendarView';
+import CommitmentDetailModal from './components/CommitmentDetailModal';
 import { 
   Landmark, 
   Calendar as CalendarIcon, 
@@ -45,7 +46,8 @@ export default function App() {
   
   // Data state
   const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [payments, setPayments] = useState<Record<string, Payment>>({}); // commitmentId -> Payment
+  const [payments, setPayments] = useState<Record<string, Payment>>({}); // commitmentId -> Payment (for selectedMonth)
+  const [allPayments, setAllPayments] = useState<Record<string, Payment>>({}); // paymentId -> Payment (across all months)
 
   // Date and UI state
   const currentMonthStr = new Date().toISOString().substring(0, 7); // YYYY-MM
@@ -53,10 +55,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'projections'>('dashboard');
   const [userFilter, setUserFilter] = useState<string>('Both');
   
-  // Form modal state
+  // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCommitment, setEditingCommitment] = useState<Commitment | undefined>(undefined);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [selectedDetailCommitment, setSelectedDetailCommitment] = useState<Commitment | null>(null);
 
   // Database action error state
   const [operationError, setOperationError] = useState<string | null>(null);
@@ -144,6 +147,7 @@ export default function App() {
     if (!user) {
       setCommitments([]);
       setPayments({});
+      setAllPayments({});
       setDbLoading(false);
       return;
     }
@@ -158,11 +162,23 @@ export default function App() {
       const comsList: Commitment[] = localComs ? JSON.parse(localComs) : [];
       setCommitments(comsList);
 
-      // Load payments
-      const localPaysKey = `payments_${user.uid}_${selectedMonth}`;
-      const localPays = localStorage.getItem(localPaysKey);
-      const paymentsMap: Record<string, Payment> = localPays ? JSON.parse(localPays) : {};
-      setPayments(paymentsMap);
+      // Load all local payments across all months
+      const allPayMap: Record<string, Payment> = {};
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(`payments_${user.uid}_`)) {
+          try {
+            const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+            Object.values(parsed).forEach((p: any) => {
+              if (p && p.id && p.commitmentId) {
+                allPayMap[p.id] = p;
+              }
+            });
+          } catch (e) {
+            console.error("Error reading local payment:", e);
+          }
+        }
+      });
+      setAllPayments(allPayMap);
       setDbLoading(false);
       return;
     }
@@ -187,20 +203,19 @@ export default function App() {
       setDbLoading(false);
     });
 
-    // 2. Listen to Payments for current selected month
+    // 2. Listen to Payments across all months for this user
     const paymentsQuery = query(
       collection(db, 'payments'),
-      where('userId', '==', user.uid),
-      where('month', '==', selectedMonth)
+      where('userId', '==', user.uid)
     );
 
     const unsubscribePayments = onSnapshot(paymentsQuery, (snapshot) => {
-      const paymentsMap: Record<string, Payment> = {};
+      const allPayMap: Record<string, Payment> = {};
       snapshot.forEach((docSnap) => {
         const pay = docSnap.data() as Payment;
-        paymentsMap[pay.commitmentId] = pay;
+        allPayMap[pay.id] = pay;
       });
-      setPayments(paymentsMap);
+      setAllPayments(allPayMap);
     }, (error) => {
       console.error("Error subscribing to payments:", error);
     });
@@ -209,7 +224,18 @@ export default function App() {
       unsubscribeCommitments();
       unsubscribePayments();
     };
-  }, [user, selectedMonth]);
+  }, [user]);
+
+  // Synchronize current selectedMonth payments from allPayments
+  useEffect(() => {
+    const currentMonthPayments: Record<string, Payment> = {};
+    (Object.values(allPayments) as Payment[]).forEach((pay) => {
+      if (pay.month === selectedMonth) {
+        currentMonthPayments[pay.commitmentId] = pay;
+      }
+    });
+    setPayments(currentMonthPayments);
+  }, [allPayments, selectedMonth]);
 
   const handleSignOut = async () => {
     try {
@@ -237,31 +263,48 @@ export default function App() {
     setSelectedMonth(currentMonthStr);
   };
 
-  // Toggle Payment status (paid vs pending)
-  const handleTogglePayment = async (commitmentId: string) => {
+  // Toggle Payment status (paid vs pending) for selectedMonth or a specific targetMonth
+  const handleTogglePayment = async (commitmentId: string, targetMonth: string = selectedMonth) => {
     if (!user) return;
 
-    const paymentId = `${commitmentId}_${selectedMonth}`;
-    const existingPayment = payments[commitmentId];
+    const paymentId = `${commitmentId}_${targetMonth}`;
+    const existingPayment = allPayments[paymentId] || (targetMonth === selectedMonth ? payments[commitmentId] : undefined);
     const isLocal = localStorage.getItem('is_local_mode') === 'true';
 
     if (isLocal) {
-      const updatedPayments = { ...payments };
+      const updatedAll = { ...allPayments };
+      const updatedCurrent = { ...payments };
+      const monthStorageKey = `payments_${user.uid}_${targetMonth}`;
+      let monthPayments: Record<string, Payment> = {};
+      try {
+        monthPayments = JSON.parse(localStorage.getItem(monthStorageKey) || '{}');
+      } catch {}
+
       if (existingPayment && existingPayment.status === 'paid') {
-        delete updatedPayments[commitmentId];
+        delete updatedAll[paymentId];
+        delete monthPayments[commitmentId];
+        if (targetMonth === selectedMonth) {
+          delete updatedCurrent[commitmentId];
+        }
       } else {
         const newPayment: Payment = {
           id: paymentId,
           commitmentId,
           userId: user.uid,
-          month: selectedMonth,
+          month: targetMonth,
           status: 'paid',
           paidAt: new Date().toISOString(),
         };
-        updatedPayments[commitmentId] = newPayment;
+        updatedAll[paymentId] = newPayment;
+        monthPayments[commitmentId] = newPayment;
+        if (targetMonth === selectedMonth) {
+          updatedCurrent[commitmentId] = newPayment;
+        }
       }
-      setPayments(updatedPayments);
-      localStorage.setItem(`payments_${user.uid}_${selectedMonth}`, JSON.stringify(updatedPayments));
+
+      setAllPayments(updatedAll);
+      setPayments(updatedCurrent);
+      localStorage.setItem(monthStorageKey, JSON.stringify(monthPayments));
       return;
     }
 
@@ -275,7 +318,7 @@ export default function App() {
           id: paymentId,
           commitmentId,
           userId: user.uid,
-          month: selectedMonth,
+          month: targetMonth,
           status: 'paid',
           paidAt: new Date().toISOString(),
         };
@@ -320,18 +363,22 @@ export default function App() {
     }
   };
 
-  // Batch Import Commitments from Excel / CSV
+  // Batch Import Commitments from Excel / CSV (with Payment Status support)
   const handleBatchImportCommitments = async (
-    newCommitments: Omit<Commitment, 'id' | 'userId' | 'createdAt'>[],
+    newCommitments: ImportedCommitmentItem[],
     replaceExisting: boolean = false
   ) => {
     if (!user) return;
     const isLocal = localStorage.getItem('is_local_mode') === 'true';
     const now = new Date().toISOString();
 
-    const createdList: Commitment[] = newCommitments.map((formData, idx) => {
+    const createdList: Commitment[] = [];
+    const createdPayments: Payment[] = [];
+
+    newCommitments.forEach((formData, idx) => {
+      const id = `com_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
       const com: Commitment = {
-        id: `com_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
+        id,
         userId: user.uid,
         name: String(formData.name || '').trim() || `Commitment ${idx + 1}`,
         category: formData.category || 'Other',
@@ -345,17 +392,49 @@ export default function App() {
       if (formData.notes && String(formData.notes).trim() !== '') {
         com.notes = String(formData.notes).trim().substring(0, 500);
       }
-      return com;
+      createdList.push(com);
+
+      // Multi-installment detected payment months
+      const paidMonthsSet = new Set<string>(formData.detectedPaidMonths || []);
+      if (formData.isPaid) {
+        paidMonthsSet.add(selectedMonth);
+      }
+
+      paidMonthsSet.forEach(bMonth => {
+        const paymentId = `${id}_${bMonth}`;
+        const newPayment: Payment = {
+          id: paymentId,
+          commitmentId: id,
+          userId: user.uid,
+          month: bMonth,
+          status: 'paid',
+          paidAt: formData.paidAt || now,
+        };
+        createdPayments.push(newPayment);
+      });
     });
 
     if (isLocal) {
       const updatedCommitments = replaceExisting ? createdList : [...commitments, ...createdList];
       setCommitments(updatedCommitments);
       localStorage.setItem(`commitments_${user.uid}`, JSON.stringify(updatedCommitments));
+
+      const updatedAll = replaceExisting ? {} : { ...allPayments };
+      createdPayments.forEach(p => {
+        updatedAll[p.id] = p;
+        const monthKey = `payments_${user.uid}_${p.month}`;
+        let monthData: Record<string, Payment> = {};
+        try {
+          monthData = JSON.parse(localStorage.getItem(monthKey) || '{}');
+        } catch {}
+        monthData[p.commitmentId] = p;
+        localStorage.setItem(monthKey, JSON.stringify(monthData));
+      });
+      setAllPayments(updatedAll);
+
       if (replaceExisting) {
-        setPayments({});
         Object.keys(localStorage).forEach(key => {
-          if (key.startsWith(`payments_${user.uid}`)) {
+          if (key.startsWith(`payments_${user.uid}`) && key !== `payments_${user.uid}_${selectedMonth}`) {
             localStorage.removeItem(key);
           }
         });
@@ -406,11 +485,22 @@ export default function App() {
         return setDoc(doc(db, 'commitments', item.id), payload);
       });
 
-      await Promise.all(savePromises);
+      // Save all detected/marked paid records to Firestore
+      const paymentSavePromises = createdPayments.map(pay => {
+        return setDoc(doc(db, 'payments', pay.id), pay);
+      });
+
+      await Promise.all([...savePromises, ...paymentSavePromises]);
 
       // Update local state
       const updatedList = replaceExisting ? createdList : [...commitments, ...createdList];
       setCommitments(updatedList);
+
+      const updatedPaymentsMap = replaceExisting ? {} : { ...payments };
+      createdPayments.forEach(p => {
+        updatedPaymentsMap[p.commitmentId] = p;
+      });
+      setPayments(updatedPaymentsMap);
     } catch (err: any) {
       console.error("Error importing commitments:", err);
       throw new Error(err.message || "Failed to save imported commitments to database.");
@@ -472,10 +562,25 @@ export default function App() {
     }
   };
 
+  // Keep selectedDetailCommitment updated with live commitments data
+  useEffect(() => {
+    if (selectedDetailCommitment) {
+      const live = commitments.find(c => c.id === selectedDetailCommitment.id);
+      if (live) {
+        setSelectedDetailCommitment(live);
+      } else {
+        setSelectedDetailCommitment(null);
+      }
+    }
+  }, [commitments]);
+
   // Delete Commitment
   const handleDeleteCommitment = async (commitmentId: string) => {
     if (!user) return;
     if (!window.confirm("Are you sure you want to delete this commitment? All history will be deleted.")) return;
+    if (selectedDetailCommitment?.id === commitmentId) {
+      setSelectedDetailCommitment(null);
+    }
     const isLocal = localStorage.getItem('is_local_mode') === 'true';
 
     if (isLocal) {
@@ -486,6 +591,15 @@ export default function App() {
       const updatedPayments = { ...payments };
       delete updatedPayments[commitmentId];
       setPayments(updatedPayments);
+
+      const updatedAll = { ...allPayments };
+      Object.keys(updatedAll).forEach(key => {
+        if (key.startsWith(`${commitmentId}_`)) {
+          delete updatedAll[key];
+        }
+      });
+      setAllPayments(updatedAll);
+
       localStorage.setItem(`payments_${user.uid}_${selectedMonth}`, JSON.stringify(updatedPayments));
       return;
     }
@@ -704,6 +818,7 @@ export default function App() {
               <CommitmentList
                 commitments={commitments}
                 payments={payments}
+                allPayments={allPayments}
                 selectedMonth={selectedMonth}
                 onTogglePayment={handleTogglePayment}
                 onEdit={handleEditClick}
@@ -712,6 +827,7 @@ export default function App() {
                 userFilter={userFilter}
                 onUserFilterChange={setUserFilter}
                 onImportClick={() => setIsImportOpen(true)}
+                onViewDetails={(com) => setSelectedDetailCommitment(com)}
               />
             )}
 
@@ -721,6 +837,7 @@ export default function App() {
                 payments={payments}
                 selectedMonth={selectedMonth}
                 onTogglePayment={handleTogglePayment}
+                onViewDetails={(com) => setSelectedDetailCommitment(com)}
               />
             )}
 
@@ -749,6 +866,21 @@ export default function App() {
           onSave={handleSaveCommitment}
           onClose={() => setIsFormOpen(false)}
           initialCommitment={editingCommitment}
+        />
+      )}
+
+      {/* Commitment Detail & Installment Schedule Modal */}
+      {selectedDetailCommitment && (
+        <CommitmentDetailModal
+          commitment={selectedDetailCommitment}
+          isOpen={Boolean(selectedDetailCommitment)}
+          onClose={() => setSelectedDetailCommitment(null)}
+          allPayments={allPayments}
+          onTogglePayment={handleTogglePayment}
+          onEdit={(com) => {
+            setSelectedDetailCommitment(null);
+            handleEditClick(com);
+          }}
         />
       )}
 

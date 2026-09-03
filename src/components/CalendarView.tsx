@@ -7,9 +7,10 @@ interface CalendarViewProps {
   payments: Record<string, Payment>;
   selectedMonth: string;
   onTogglePayment: (commitmentId: string) => void;
+  onViewDetails?: (commitment: Commitment) => void;
 }
 
-export default function CalendarView({ commitments, payments, selectedMonth, onTogglePayment }: CalendarViewProps) {
+export default function CalendarView({ commitments, payments, selectedMonth, onTogglePayment, onViewDetails }: CalendarViewProps) {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const [year, month] = selectedMonth.split('-').map(Number);
@@ -225,10 +226,12 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
                 return (
                   <div 
                     key={c.id}
-                    className="p-3 bg-[#F2F2F7] rounded-xl flex items-center justify-between gap-3 border border-[#E5E5EA]"
+                    onClick={() => onViewDetails?.(c)}
+                    className="p-3 bg-[#F2F2F7] hover:bg-[#E5E5EA]/70 transition-colors cursor-pointer rounded-xl flex items-center justify-between gap-3 border border-[#E5E5EA] group"
+                    title="Click to view installment schedule & details"
                   >
                     <div className="min-w-0 flex-1">
-                      <h5 className={`text-xs font-bold truncate ${isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'}`}>
+                      <h5 className={`text-xs font-bold truncate group-hover:text-[#007AFF] transition-colors ${isPaid ? 'text-[#8E8E93] line-through' : 'text-[#1C1C1E]'}`}>
                         {c.name}
                       </h5>
                       <p className="text-[10px] text-[#8E8E93] mt-0.5">
@@ -241,12 +244,17 @@ export default function CalendarView({ commitments, payments, selectedMonth, onT
                         {formatCurrency(c.amount)}
                       </span>
                       <button
-                        onClick={() => onTogglePayment(c.id)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTogglePayment(c.id);
+                        }}
                         className={`w-6 h-6 rounded-full border flex items-center justify-center cursor-pointer transition-all ${
                           isPaid 
                             ? 'bg-[#34C759] border-[#34C759] text-white' 
                             : 'border-[#C7C7CC] bg-white hover:border-[#007AFF]'
                         }`}
+                        title={isPaid ? "Mark as Pending" : "Mark as Paid"}
                       >
                         {isPaid && <Check size={12} strokeWidth={3} />}
                       </button>

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Commitment, CATEGORIES } from '../types';
-import { Layers, Clock, AlertCircle } from 'lucide-react';
+import { Layers, Clock, AlertCircle, Loader2 } from 'lucide-react';
 
 interface CommitmentFormProps {
-  onSave: (commitment: Omit<Commitment, 'id' | 'userId' | 'createdAt'>) => void;
+  onSave: (commitment: Omit<Commitment, 'id' | 'userId' | 'createdAt'>) => Promise<void> | void;
   onClose: () => void;
   initialCommitment?: Commitment;
 }
@@ -27,9 +27,11 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
       : 'Person A'
   );
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isSubmitting) return;
     setError('');
 
     if (!name.trim()) {
@@ -58,16 +60,26 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
       }
     }
 
-    onSave({
-      name: name.trim(),
-      category,
-      amount: parsedAmount,
-      durationMonths: parsedDuration,
-      startMonth,
-      dueDay: parsedDueDay,
-      notes: notes.trim() || undefined,
-      user,
-    });
+    setIsSubmitting(true);
+    try {
+      const payload: Omit<Commitment, 'id' | 'userId' | 'createdAt'> = {
+        name: name.trim(),
+        category,
+        amount: parsedAmount,
+        durationMonths: parsedDuration,
+        startMonth,
+        dueDay: parsedDueDay,
+        user,
+      };
+      if (notes.trim()) {
+        payload.notes = notes.trim();
+      }
+      await onSave(payload);
+    } catch (err: any) {
+      console.error("Error saving commitment:", err);
+      setError(err.message || 'Failed to save commitment. Please check your connection.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -84,7 +96,8 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
           <button
             type="button" 
             onClick={onClose}
-            className="text-sm font-normal text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer"
+            disabled={isSubmitting}
+            className="text-sm font-normal text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer disabled:opacity-50"
             id="cancel-form-btn"
           >
             Cancel
@@ -96,11 +109,13 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
 
           <button
             type="button"
-            onClick={handleSubmit}
-            className="text-sm font-semibold text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer"
+            disabled={isSubmitting}
+            onClick={() => handleSubmit()}
+            className="text-sm font-semibold text-[#007AFF] hover:opacity-75 transition-opacity cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
             id="save-commitment-nav-btn"
           >
-            {initialCommitment ? 'Done' : 'Add'}
+            {isSubmitting && <Loader2 size={13} className="animate-spin" />}
+            <span>{initialCommitment ? 'Done' : 'Add'}</span>
           </button>
         </div>
 
@@ -297,10 +312,18 @@ export default function CommitmentForm({ onSave, onClose, initialCommitment }: C
           <div className="pt-2 pb-1">
             <button
               type="submit"
-              className="w-full py-3 bg-[#007AFF] hover:bg-[#0066D6] active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.25)] cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full py-3 bg-[#007AFF] hover:bg-[#0066D6] active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.25)] cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               id="save-commitment-btn"
             >
-              {initialCommitment ? 'Update Commitment' : 'Add Commitment'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{initialCommitment ? 'Updating Bill...' : 'Adding Bill...'}</span>
+                </>
+              ) : (
+                <span>{initialCommitment ? 'Update Commitment' : 'Add Commitment'}</span>
+              )}
             </button>
           </div>
         </form>

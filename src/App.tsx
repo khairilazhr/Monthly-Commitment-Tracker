@@ -13,7 +13,8 @@ import {
   setDoc, 
   deleteDoc, 
   getDocs,
-  getDocFromServer 
+  getDocFromServer,
+  writeBatch 
 } from 'firebase/firestore';
 import { auth, db } from './lib/firebase';
 import { Commitment, Payment, isCommitmentActive, monthToVal, valToMonth, formatMonthReadable } from './types';
@@ -184,7 +185,58 @@ export default function App() {
       return;
     }
 
+    // 0. Load cached data immediately for instant offline-first display
+    const cachedComsStr = localStorage.getItem(`commitments_cache_${user.uid}`);
+    if (cachedComsStr) {
+      try {
+        const cached = JSON.parse(cachedComsStr);
+        if (Array.isArray(cached) && cached.length > 0) {
+          setCommitments(cached);
+        }
+      } catch (e) {
+        console.error("Error reading commitments cache:", e);
+      }
+    }
+
     setDbLoading(true);
+
+    // Auto-migrate any commitments created while in Guest/Offline mode
+    const guestComsStr = localStorage.getItem('commitments_local_guest');
+    if (guestComsStr) {
+      try {
+        const guestComs = JSON.parse(guestComsStr);
+        if (Array.isArray(guestComs) && guestComs.length > 0) {
+          console.log(`Migrating ${guestComs.length} guest commitments to cloud user ${user.uid}`);
+          const batch = writeBatch(db);
+          guestComs.forEach((gc: any) => {
+            const newId = gc.id || `com_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            const payload: Record<string, any> = {
+              id: newId,
+              userId: user.uid,
+              name: gc.name || 'Commitment',
+              category: gc.category || 'Other',
+              amount: typeof gc.amount === 'number' ? gc.amount : 0,
+              durationMonths: typeof gc.durationMonths === 'number' ? gc.durationMonths : 999,
+              startMonth: gc.startMonth || selectedMonth,
+              dueDay: typeof gc.dueDay === 'number' ? gc.dueDay : 1,
+              createdAt: gc.createdAt || new Date().toISOString(),
+              user: gc.user || 'Person A',
+            };
+            if (gc.notes && gc.notes.trim()) {
+              payload.notes = gc.notes.trim();
+            }
+            batch.set(doc(db, 'commitments', newId), payload);
+          });
+          batch.commit().then(() => {
+            localStorage.removeItem('commitments_local_guest');
+          }).catch((err) => {
+            console.error("Failed to auto-migrate guest commitments:", err);
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing guest commitments:", e);
+      }
+    }
 
     // 1. Listen to Commitments
     const commitmentsQuery = query(
@@ -198,6 +250,7 @@ export default function App() {
         comsList.push(docSnap.data() as Commitment);
       });
       setCommitments(comsList);
+      localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(comsList));
       setDbLoading(false);
     }, (error) => {
       console.error("Error subscribing to commitments:", error);
@@ -337,16 +390,25 @@ export default function App() {
     const isLocal = localStorage.getItem('is_local_mode') === 'true';
 
     const id = editingCommitment?.id || `com_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const commitmentData: Commitment = {
-      ...formData,
+    const commitmentData: Record<string, any> = {
       id,
       userId: user.uid,
+      name: formData.name.trim(),
+      category: formData.category || 'Other',
+      amount: typeof formData.amount === 'number' ? formData.amount : parseFloat(String(formData.amount)) || 0,
+      durationMonths: typeof formData.durationMonths === 'number' ? formData.durationMonths : parseInt(String(formData.durationMonths)) || 999,
+      startMonth: formData.startMonth,
+      dueDay: typeof formData.dueDay === 'number' ? formData.dueDay : parseInt(String(formData.dueDay)) || 1,
       createdAt: editingCommitment?.createdAt || new Date().toISOString(),
+      user: formData.user || 'Person A',
     };
+    if (formData.notes && formData.notes.trim()) {
+      commitmentData.notes = formData.notes.trim();
+    }
 
     if (isLocal) {
       const updatedCommitments = commitments.filter(c => c.id !== id);
-      updatedCommitments.push(commitmentData);
+      updatedCommitments.push(commitmentData as Commitment);
       setCommitments(updatedCommitments);
       localStorage.setItem(`commitments_${user.uid}`, JSON.stringify(updatedCommitments));
       setIsFormOpen(false);
@@ -356,11 +418,17 @@ export default function App() {
 
     try {
       await setDoc(doc(db, 'commitments', id), commitmentData);
+      // Update local cache for instant offline reliability
+      const updatedCommitments = commitments.filter(c => c.id !== id);
+      updatedCommitments.push(commitmentData as Commitment);
+      localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(updatedCommitments));
+
       setIsFormOpen(false);
       setEditingCommitment(undefined);
     } catch (err: any) {
       console.error("Error saving commitment:", err);
       showError(err.message || "Failed to save commitment. Please check your database permissions.");
+      throw err; // Re-throw so CommitmentForm can display the error
     }
   };
 
@@ -444,14 +512,28 @@ export default function App() {
     }
 
     try {
+      // Chunked atomic writeBatch for robust Firestore writes
+      const batchList: any[] = [];
+      let currentBatch = writeBatch(db);
+      let opCount = 0;
+
+      const enqueueOp = (operation: (b: any) => void) => {
+        if (opCount >= 400) {
+          batchList.push(currentBatch);
+          currentBatch = writeBatch(db);
+          opCount = 0;
+        }
+        operation(currentBatch);
+        opCount++;
+      };
+
       if (replaceExisting) {
         // Query and delete all existing user commitments
         const existingDocs = await getDocs(
           query(collection(db, 'commitments'), where('userId', '==', user.uid))
         );
-        const deletePromises: Promise<any>[] = [];
         existingDocs.forEach(d => {
-          deletePromises.push(deleteDoc(doc(db, 'commitments', d.id)));
+          enqueueOp(b => b.delete(doc(db, 'commitments', d.id)));
         });
 
         // Also clean up any prior payments if doing a fresh replace
@@ -459,16 +541,13 @@ export default function App() {
           query(collection(db, 'payments'), where('userId', '==', user.uid))
         );
         paymentDocs.forEach(d => {
-          deletePromises.push(deleteDoc(doc(db, 'payments', d.id)));
+          enqueueOp(b => b.delete(doc(db, 'payments', d.id)));
         });
-
-        await Promise.all(deletePromises);
-        setPayments({});
       }
 
       // Save each new commitment with strictly sanitized payload (no undefined values)
-      const savePromises = createdList.map(item => {
-        const payload: any = {
+      createdList.forEach(item => {
+        const payload: Record<string, any> = {
           id: item.id,
           userId: user.uid,
           name: item.name,
@@ -483,23 +562,33 @@ export default function App() {
         if (item.notes) {
           payload.notes = item.notes;
         }
-        return setDoc(doc(db, 'commitments', item.id), payload);
+        enqueueOp(b => b.set(doc(db, 'commitments', item.id), payload));
       });
 
       // Save all detected/marked paid records to Firestore
-      const paymentSavePromises = createdPayments.map(pay => {
-        return setDoc(doc(db, 'payments', pay.id), pay);
+      createdPayments.forEach(pay => {
+        enqueueOp(b => b.set(doc(db, 'payments', pay.id), pay));
       });
 
-      await Promise.all([...savePromises, ...paymentSavePromises]);
+      if (opCount > 0) {
+        batchList.push(currentBatch);
+      }
 
-      // Update local state
+      // Commit all batches in sequence
+      for (const batch of batchList) {
+        await batch.commit();
+      }
+
+      // Update local state and offline cache
       const updatedList = replaceExisting ? createdList : [...commitments, ...createdList];
       setCommitments(updatedList);
+      localStorage.setItem(`commitments_cache_${user.uid}`, JSON.stringify(updatedList));
 
       const updatedPaymentsMap = replaceExisting ? {} : { ...payments };
       createdPayments.forEach(p => {
-        updatedPaymentsMap[p.commitmentId] = p;
+        if (p.month === selectedMonth) {
+          updatedPaymentsMap[p.commitmentId] = p;
+        }
       });
       setPayments(updatedPaymentsMap);
     } catch (err: any) {
@@ -526,28 +615,47 @@ export default function App() {
     }
 
     try {
+      const batchList: any[] = [];
+      let currentBatch = writeBatch(db);
+      let opCount = 0;
+
+      const enqueueOp = (operation: (b: any) => void) => {
+        if (opCount >= 400) {
+          batchList.push(currentBatch);
+          currentBatch = writeBatch(db);
+          opCount = 0;
+        }
+        operation(currentBatch);
+        opCount++;
+      };
+
       // 1. Fetch and delete all user commitments
       const commitmentsSnapshot = await getDocs(
         query(collection(db, 'commitments'), where('userId', '==', user.uid))
       );
-      const deleteComPromises: Promise<any>[] = [];
       commitmentsSnapshot.forEach(docSnap => {
-        deleteComPromises.push(deleteDoc(doc(db, 'commitments', docSnap.id)));
+        enqueueOp(b => b.delete(doc(db, 'commitments', docSnap.id)));
       });
-      await Promise.all(deleteComPromises);
       
       // 2. Fetch and delete all user payment records
       const paymentsSnapshot = await getDocs(
         query(collection(db, 'payments'), where('userId', '==', user.uid))
       );
-      const deletePayPromises: Promise<any>[] = [];
       paymentsSnapshot.forEach(docSnap => {
-        deletePayPromises.push(deleteDoc(doc(db, 'payments', docSnap.id)));
+        enqueueOp(b => b.delete(doc(db, 'payments', docSnap.id)));
       });
-      await Promise.all(deletePayPromises);
+
+      if (opCount > 0) {
+        batchList.push(currentBatch);
+      }
+
+      for (const batch of batchList) {
+        await batch.commit();
+      }
 
       // Clean local storage cache
       localStorage.removeItem(`commitments_${user.uid}`);
+      localStorage.removeItem(`commitments_cache_${user.uid}`);
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith(`payments_${user.uid}`)) {
           localStorage.removeItem(key);
